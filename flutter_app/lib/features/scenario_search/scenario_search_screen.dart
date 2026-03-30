@@ -26,6 +26,7 @@ class _ScenarioSearchScreenState
   List<ScenarioPassage> _passages = [];
   bool _isLoading = false;
   String? _error;
+  String _submittedQuery = '';
 
   @override
   void dispose() {
@@ -56,6 +57,7 @@ class _ScenarioSearchScreenState
       _isLoading = true;
       _error = null;
       _passages = [];
+      _submittedQuery = input;
     });
 
     try {
@@ -100,7 +102,7 @@ class _ScenarioSearchScreenState
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusScope.of(context).unfocus(),
@@ -108,84 +110,135 @@ class _ScenarioSearchScreenState
           bottom: false,
           child: Column(
           children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(10),
+            // Header — full when empty, compact when results exist
+            if (_passages.isEmpty && !_isLoading) ...[
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.search_rounded,
+                              color: Colors.white, size: 20),
                         ),
-                        child: const Icon(Icons.search_rounded,
-                            color: Colors.white, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        isPT ? 'Busca por Cenário' : 'Scenario Search',
-                        style: theme.textTheme.headlineMedium,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    isPT
-                        ? 'Descreve a tua situação e a IA encontra versículos relevantes'
-                        : 'Describe your situation and AI finds relevant verses',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
+                        const SizedBox(width: 12),
+                        Text(
+                          isPT ? 'Busca por Cenário' : 'Scenario Search',
+                          style: theme.textTheme.headlineMedium,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      isPT
+                          ? 'Descreve a tua situação e a IA encontra versículos relevantes'
+                          : 'Describe your situation and AI finds relevant verses',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
-            ),
-
-            // Search input
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _controller,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: isPT
-                          ? 'Descreve a tua situação ou o que estás a sentir...'
-                          : 'Describe your situation or what you are feeling...',
-                      hintMaxLines: 3,
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _controller,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: isPT
+                            ? 'Descreve a tua situação ou o que estás a sentir...'
+                            : 'Describe your situation or what you are feeling...',
+                        hintMaxLines: 3,
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
                     ),
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: AppButton(
-                      label: isPT
-                          ? 'Encontrar Passagens'
-                          : 'Find Passages',
-                      icon: Icons.auto_awesome,
-                      onPressed: _isLoading ? null : _search,
-                      isLoading: _isLoading,
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: AppButton(
+                        label: isPT ? 'Encontrar Passagens' : 'Find Passages',
+                        icon: Icons.auto_awesome,
+                        onPressed: _isLoading ? null : _search,
+                        isLoading: _isLoading,
+                      ),
                     ),
-                  ),
-
-                  // Free plan hint
-                  const SizedBox(height: 8),
-                  Text(
-                    isPT
-                        ? '3 buscas por semana no plano gratuito'
-                        : '3 searches per week on the free plan',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                    const SizedBox(height: 8),
+                    Text(
+                      isPT
+                          ? '3 buscas por semana no plano gratuito'
+                          : '3 searches per week on the free plan',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: context.ac.textSecondary),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ] else ...[
+              // Compact bar — shows query + edit button
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: context.ac.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: context.ac.cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.search_rounded,
+                          color: Colors.white, size: 14),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _submittedQuery,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: context.ac.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => setState(() {
+                        _passages = [];
+                        _error = null;
+                      }),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        isPT ? 'Editar' : 'Edit',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
 
             // Results
             Expanded(
@@ -222,7 +275,7 @@ class _ScenarioSearchScreenState
               _error!,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: context.ac.textSecondary,
                   ),
             ),
           ],
@@ -247,7 +300,7 @@ class _ScenarioSearchScreenState
                   : 'Write what you\'re feeling\nand AI will find the right verses',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: context.ac.textSecondary,
                     height: 1.6,
                   ),
             ),
@@ -331,9 +384,9 @@ class _HistoricalContextSheetState
       initialChildSize: 0.7,
       maxChildSize: 0.95,
       builder: (ctx, scroll) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           children: [
@@ -342,7 +395,7 @@ class _HistoricalContextSheetState
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.divider,
+                color: context.ac.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -432,7 +485,7 @@ class _ContextItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
+          color: context.ac.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -456,7 +509,7 @@ class _ContextItem extends StatelessWidget {
             Text(
               text,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textPrimary,
+                    color: context.ac.textPrimary,
                     height: 1.6,
                   ),
             ),

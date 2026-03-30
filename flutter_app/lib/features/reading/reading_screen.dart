@@ -132,49 +132,18 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text(isPT ? 'Leitura' : 'Reading'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.chat_outlined),
-            tooltip: isPT ? 'Perguntar à IA' : 'Ask AI',
-            onPressed: _selectedBook != null ? _showChat : null,
-          ),
-          IconButton(
-            icon: const Icon(Icons.history_edu_rounded),
-            tooltip: isPT ? 'Contexto Histórico' : 'Historical Context',
-            onPressed: _selectedBook != null ? _showHistoricalContext : null,
-          ),
-          // Translation toggle
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'ARC', label: Text('ARC')),
-                ButtonSegment(value: 'KJV', label: Text('KJV')),
-              ],
-              selected: {settings.translation},
-              onSelectionChanged: (val) {
-                ref.read(settingsProvider.notifier).setTranslation(val.first);
-                // ref.listen in build() will call _loadBooks with the new translation
-              },
-              style: ButtonStyle(
-                textStyle: WidgetStateProperty.all(
-                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
-          // Book + Chapter selector
-          _BookChapterSelector(
+          // Custom header (replaces AppBar + BookChapterSelector)
+          _BibleHeader(
             books: _books,
             selectedBook: _selectedBook ?? '',
             selectedChapter: _selectedChapter,
             totalChapters: _totalChapters,
+            translation: settings.translation,
+            isPT: isPT,
+            canInteract: _selectedBook != null,
             onBookChanged: (book) {
               final translation = ref.read(settingsProvider).translation;
               setState(() {
@@ -188,9 +157,12 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               setState(() => _selectedChapter = ch);
               _loadChapter(translation);
             },
+            onTranslationChanged: (val) {
+              ref.read(settingsProvider.notifier).setTranslation(val);
+            },
+            onChat: _showChat,
+            onHistory: _showHistoricalContext,
           ),
-
-          const Divider(height: 1),
 
           // Verses
           Expanded(
@@ -211,7 +183,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                                   : 'Bible database not found.\nAdd .db files to assets/bible/',
                               textAlign: TextAlign.center,
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.textSecondary),
+                                  color: context.ac.textSecondary),
                             ),
                           ],
                         ),
@@ -276,85 +248,217 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   }
 }
 
-class _BookChapterSelector extends StatelessWidget {
+class _BibleHeader extends StatelessWidget {
   final List<String> books;
   final String selectedBook;
   final int selectedChapter;
   final int totalChapters;
+  final String translation;
+  final bool isPT;
+  final bool canInteract;
   final ValueChanged<String> onBookChanged;
   final ValueChanged<int> onChapterChanged;
+  final ValueChanged<String> onTranslationChanged;
+  final VoidCallback onChat;
+  final VoidCallback onHistory;
 
-  const _BookChapterSelector({
+  const _BibleHeader({
     required this.books,
     required this.selectedBook,
     required this.selectedChapter,
     required this.totalChapters,
+    required this.translation,
+    required this.isPT,
+    required this.canInteract,
     required this.onBookChanged,
     required this.onChapterChanged,
+    required this.onTranslationChanged,
+    required this.onChat,
+    required this.onHistory,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.surfaceLight,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          // Book dropdown
-          Expanded(
-            flex: 3,
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: books.contains(selectedBook) ? selectedBook : null,
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                    color: AppColors.primary),
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                items: books
-                    .map((b) => DropdownMenuItem(
-                          value: b,
-                          child: Text(b, overflow: TextOverflow.ellipsis),
-                        ))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) onBookChanged(val);
-                },
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Chapter dropdown
-          Expanded(
-            flex: 2,
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<int>(
-                value: selectedChapter,
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                    color: AppColors.primary),
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                items: List.generate(
-                  totalChapters,
-                  (i) => DropdownMenuItem(
-                    value: i + 1,
-                    child: Text('Cap. ${i + 1}'),
+    final ac = context.ac;
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          border: Border(bottom: BorderSide(color: ac.divider)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row 1: Book + Chapter pills
+            Row(
+              children: [
+                // Book pill
+                Expanded(
+                  child: _HeaderPill(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: books.contains(selectedBook) ? selectedBook : null,
+                        isExpanded: true,
+                        isDense: true,
+                        dropdownColor: ac.surface,
+                        icon: Icon(Icons.expand_more_rounded,
+                            color: AppColors.primary, size: 20),
+                        style: TextStyle(
+                          color: ac.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        items: books
+                            .map((b) => DropdownMenuItem(
+                                  value: b,
+                                  child: Text(b,
+                                      overflow: TextOverflow.ellipsis),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) onBookChanged(val);
+                        },
+                      ),
+                    ),
                   ),
                 ),
-                onChanged: (val) {
-                  if (val != null) onChapterChanged(val);
-                },
+                const SizedBox(width: 8),
+                // Chapter pill
+                _HeaderPill(
+                  width: 120,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: selectedChapter,
+                      isExpanded: true,
+                      isDense: true,
+                      dropdownColor: ac.surface,
+                      icon: Icon(Icons.expand_more_rounded,
+                          color: AppColors.primary, size: 20),
+                      style: TextStyle(
+                        color: ac.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      items: List.generate(
+                        totalChapters,
+                        (i) => DropdownMenuItem(
+                          value: i + 1,
+                          child: Text(isPT ? 'Cap. ${i + 1}' : 'Ch. ${i + 1}'),
+                        ),
+                      ),
+                      onChanged: (val) {
+                        if (val != null) onChapterChanged(val);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Row 2: Translation toggle + action icons
+            Row(
+              children: [
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'ARC', label: Text('ARC')),
+                    ButtonSegment(value: 'KJV', label: Text('KJV')),
+                  ],
+                  selected: {translation},
+                  onSelectionChanged: (val) => onTranslationChanged(val.first),
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: WidgetStateProperty.all(
+                      const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                _ActionPill(
+                  icon: Icons.history_edu_rounded,
+                  label: isPT ? 'Contexto' : 'Context',
+                  onTap: canInteract ? onHistory : null,
+                ),
+                const SizedBox(width: 8),
+                _ActionPill(
+                  icon: Icons.chat_outlined,
+                  label: isPT ? 'Tutor' : 'Tutor',
+                  onTap: canInteract ? onChat : null,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderPill extends StatelessWidget {
+  final Widget child;
+  final double? width;
+
+  const _HeaderPill({required this.child, this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: context.ac.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: context.ac.cardBorder),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _ActionPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _ActionPill({required this.icon, required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final color = enabled ? AppColors.primary : context.ac.textSecondary.withAlpha(80);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: enabled
+              ? AppColors.primary.withAlpha(14)
+              : context.ac.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: enabled
+                ? AppColors.primary.withAlpha(60)
+                : context.ac.cardBorder,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -448,7 +552,7 @@ class _VerseRowState extends State<_VerseRow> {
                     style: GoogleFonts.merriweather(
                       fontSize: widget.fontSize,
                       height: 1.8,
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).extension<AppAdaptiveColors>()!.textPrimary,
                     ),
                   ),
                 ],
@@ -509,8 +613,8 @@ class _ActionChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -593,8 +697,8 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
       initialChildSize: 0.55,
       maxChildSize: 0.85,
       builder: (ctx, scroll) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -604,7 +708,7 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.divider,
+                color: context.ac.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -621,17 +725,17 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
                       children: [
                         Text(
                           isPT ? 'Explicação' : 'Explanation',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: context.ac.textPrimary,
                           ),
                         ),
                         Text(
                           widget.verse.reference,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary,
+                            color: context.ac.textSecondary,
                           ),
                         ),
                       ],
@@ -655,7 +759,7 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
                 style: GoogleFonts.merriweather(
                   fontSize: 13,
                   height: 1.6,
-                  color: AppColors.textPrimary,
+                  color: context.ac.textPrimary,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -673,8 +777,8 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
                           const SizedBox(height: 12),
                           Text(
                             isPT ? 'A explicar...' : 'Explaining...',
-                            style: const TextStyle(
-                                color: AppColors.textSecondary,
+                            style: TextStyle(
+                                color: context.ac.textSecondary,
                                 fontSize: 13),
                           ),
                         ],
@@ -686,8 +790,8 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
                             padding: const EdgeInsets.all(24),
                             child: Text(_error!,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    color: AppColors.textSecondary)),
+                                style: TextStyle(
+                                    color: context.ac.textSecondary)),
                           ),
                         )
                       : SingleChildScrollView(
@@ -699,10 +803,10 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
                             children: [
                               Text(
                                 _explanation ?? '',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 16,
                                   height: 1.7,
-                                  color: AppColors.textPrimary,
+                                  color: context.ac.textPrimary,
                                 ),
                               ),
                               if (_context != null &&
@@ -712,10 +816,10 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
                                 Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surfaceLight,
+                                    color: Theme.of(context).extension<AppAdaptiveColors>()!.surface,
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
-                                        color: AppColors.cardBorder),
+                                        color: context.ac.cardBorder),
                                   ),
                                   child: Column(
                                     crossAxisAlignment:
@@ -742,10 +846,10 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
                                       const SizedBox(height: 8),
                                       Text(
                                         _context!,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14,
                                           height: 1.6,
-                                          color: AppColors.textSecondary,
+                                          color: context.ac.textSecondary,
                                         ),
                                       ),
                                     ],
@@ -835,8 +939,8 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
       initialChildSize: 0.7,
       maxChildSize: 0.95,
       builder: (ctx, scroll) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -846,7 +950,7 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.divider,
+                color: context.ac.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -862,17 +966,17 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
                       children: [
                         Text(
                           isPT ? 'Estudo das Palavras' : 'Word Study',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: context.ac.textPrimary,
                           ),
                         ),
                         Text(
                           widget.verse.reference,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary,
+                            color: context.ac.textSecondary,
                           ),
                         ),
                       ],
@@ -886,16 +990,16 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
               margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: Theme.of(context).extension<AppAdaptiveColors>()!.surface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.cardBorder),
+                border: Border.all(color: context.ac.cardBorder),
               ),
               child: Text(
                 widget.verse.text,
                 style: GoogleFonts.merriweather(
                   fontSize: 13,
                   height: 1.6,
-                  color: AppColors.textSecondary,
+                  color: context.ac.textSecondary,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -915,8 +1019,8 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
                             isPT
                                 ? 'A analisar as palavras originais...'
                                 : 'Analyzing original words...',
-                            style: const TextStyle(
-                                color: AppColors.textSecondary, fontSize: 13),
+                            style: TextStyle(
+                                color: context.ac.textSecondary, fontSize: 13),
                           ),
                         ],
                       ),
@@ -927,8 +1031,8 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
                             padding: const EdgeInsets.all(24),
                             child: Text(_error!,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    color: AppColors.textSecondary)),
+                                style: TextStyle(
+                                    color: context.ac.textSecondary)),
                           ),
                         )
                       : ListView.separated(
@@ -959,9 +1063,9 @@ class _WordStudyCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: Theme.of(context).extension<AppAdaptiveColors>()!.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.ac.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -978,16 +1082,16 @@ class _WordStudyCard extends StatelessWidget {
                 ),
                 child: Text(
                   '"${entry.translatedWord}"',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.arrow_forward_rounded,
-                  size: 14, color: AppColors.textSecondary),
+              Icon(Icons.arrow_forward_rounded,
+                  size: 14, color: context.ac.textSecondary),
               const SizedBox(width: 8),
               Text(
                 entry.originalWord,
@@ -1048,8 +1152,8 @@ class _WordStudyCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             entry.meaning,
-            style: const TextStyle(
-                fontSize: 14, color: AppColors.textPrimary, height: 1.5),
+            style: TextStyle(
+                fontSize: 14, color: context.ac.textPrimary, height: 1.5),
           ),
           if (entry.insight.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -1065,9 +1169,9 @@ class _WordStudyCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               entry.insight,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.textPrimary,
+                  color: context.ac.textPrimary,
                   height: 1.5,
                   fontStyle: FontStyle.italic),
             ),
@@ -1094,40 +1198,44 @@ class _ChapterNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppColors.divider)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
+        border: Border(top: BorderSide(color: context.ac.divider)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton.filled(
-            onPressed: chapter > 1 ? onPrevious : null,
-            icon: const Icon(Icons.chevron_left_rounded),
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: AppColors.divider,
-            ),
-          ),
+          if (chapter > 1)
+            IconButton.filled(
+              onPressed: onPrevious,
+              icon: const Icon(Icons.chevron_left_rounded),
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            )
+          else
+            const SizedBox(width: 48),
           Text(
             'Capítulo $chapter de $total',
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: context.ac.textSecondary,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
-          IconButton.filled(
-            onPressed: chapter < total ? onNext : null,
-            icon: const Icon(Icons.chevron_right_rounded),
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: AppColors.divider,
-            ),
-          ),
+          if (chapter < total)
+            IconButton.filled(
+              onPressed: onNext,
+              icon: const Icon(Icons.chevron_right_rounded),
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            )
+          else
+            const SizedBox(width: 48),
         ],
       ),
     );
@@ -1188,8 +1296,8 @@ class _HistoricalContextBottomSheetState
       initialChildSize: 0.65,
       maxChildSize: 0.95,
       builder: (ctx, scroll) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -1199,7 +1307,7 @@ class _HistoricalContextBottomSheetState
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: AppColors.divider,
+                  color: context.ac.divider,
                   borderRadius: BorderRadius.circular(2)),
             ),
             Padding(
@@ -1410,8 +1518,8 @@ class _BibleChatBottomSheetState
       onTap: () => FocusScope.of(context).unfocus(),
       child: Container(
         height: MediaQuery.of(context).size.height * 0.88,
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -1422,7 +1530,7 @@ class _BibleChatBottomSheetState
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.divider,
+                color: context.ac.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1439,17 +1547,17 @@ class _BibleChatBottomSheetState
                       children: [
                         Text(
                           isPT ? 'Tutor Bíblico' : 'Bible Tutor',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: context.ac.textPrimary,
                           ),
                         ),
                         Text(
                           '${widget.book} ${widget.chapter}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: context.ac.textSecondary,
                           ),
                         ),
                       ],
@@ -1479,8 +1587,8 @@ class _BibleChatBottomSheetState
                                     ? 'Faz uma pergunta sobre ${widget.book} ${widget.chapter}.\n\nPor exemplo:\n"O que significa este capítulo?"\n"Quem escreveu este livro?"\n"Por que Deus fez isso?"'
                                     : 'Ask a question about ${widget.book} ${widget.chapter}.\n\nFor example:\n"What does this chapter mean?"\n"Who wrote this book?"\n"Why did God do this?"',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: context.ac.textSecondary,
                                   fontSize: 14,
                                   height: 1.6,
                                 ),
@@ -1502,11 +1610,11 @@ class _BibleChatBottomSheetState
             ),
             // Typing indicator
             if (_sending)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 child: Row(
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
@@ -1518,7 +1626,7 @@ class _BibleChatBottomSheetState
                     Text(
                       '...',
                       style: TextStyle(
-                          color: AppColors.textSecondary, fontSize: 13),
+                          color: context.ac.textSecondary, fontSize: 13),
                     ),
                   ],
                 ),
@@ -1545,10 +1653,10 @@ class _BibleChatBottomSheetState
                       decoration: InputDecoration(
                         hintText:
                             isPT ? 'Faz uma pergunta...' : 'Ask a question...',
-                        hintStyle: const TextStyle(
-                            color: AppColors.textSecondary, fontSize: 14),
+                        hintStyle: TextStyle(
+                            color: context.ac.textSecondary, fontSize: 14),
                         filled: true,
-                        fillColor: AppColors.surfaceLight,
+                        fillColor: context.ac.inputFill,
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 10),
                         border: OutlineInputBorder(
@@ -1616,7 +1724,7 @@ class _ChatBubble extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: isUser ? AppColors.primary : AppColors.surfaceLight,
+                color: isUser ? AppColors.primary : context.ac.surface,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(18),
                   topRight: const Radius.circular(18),
@@ -1627,7 +1735,7 @@ class _ChatBubble extends StatelessWidget {
               child: Text(
                 message.content,
                 style: TextStyle(
-                  color: isUser ? Colors.white : AppColors.textPrimary,
+                  color: isUser ? Colors.white : context.ac.textPrimary,
                   fontSize: 14,
                   height: 1.5,
                 ),
@@ -1659,9 +1767,9 @@ class _ContextTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: Theme.of(context).extension<AppAdaptiveColors>()!.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.ac.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

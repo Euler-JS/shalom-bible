@@ -42,10 +42,13 @@ class ShalomBibleApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
     return MaterialApp(
       title: 'Shalom Bible',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: settings.themeMode,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -87,7 +90,7 @@ class MainNavigation extends ConsumerStatefulWidget {
 }
 
 class _MainNavigationState extends ConsumerState<MainNavigation> {
-  int _currentIndex = 0; // Start on Bible tab
+  int _currentIndex = 0;
 
   final List<Widget> _screens = const [
     ReadingScreen(),
@@ -99,59 +102,116 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(settingsProvider);
-    final isPT = settings.language == 'pt';
-
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      body: Stack(
+        children: [
+          // Main content — bottom padding reserves space for floating nav bar
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).padding.bottom + 88,
+              ),
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _screens,
+              ),
+            ),
+          ),
+          // Floating pill nav bar
+          Positioned(
+            left: 24,
+            right: 24,
+            bottom: MediaQuery.of(context).padding.bottom + 12,
+            child: _FloatingNavBar(
+              currentIndex: _currentIndex,
+              onTap: (i) => setState(() => _currentIndex = i),
+            ),
+          ),
+        ],
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.divider)),
+    );
+  }
+}
+
+class _FloatingNavBar extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  static const _icons = [
+    (Icons.menu_book_outlined, Icons.menu_book_rounded),
+    (Icons.search_outlined, Icons.search_rounded),
+    (Icons.auto_stories_outlined, Icons.auto_stories_rounded),
+    (Icons.library_books_outlined, Icons.library_books_rounded),
+    (Icons.settings_outlined, Icons.settings_rounded),
+  ];
+
+  const _FloatingNavBar({required this.currentIndex, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.isDark;
+    final bgColor = isDark
+        ? const Color(0xFF2A2840)
+        : Colors.white;
+
+    return Container(
+      height: 64,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withAlpha(18)
+              : const Color(0xFFE8E6F0),
+          width: 1,
         ),
-        child: NavigationBar(
-          selectedIndex: _currentIndex,
-          backgroundColor: Colors.white,
-          indicatorColor: AppColors.primary.withAlpha(20),
-          surfaceTintColor: Colors.transparent,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: [
-            NavigationDestination(
-              icon: const Icon(Icons.menu_book_outlined),
-              selectedIcon: const Icon(Icons.menu_book_rounded,
-                  color: AppColors.primary),
-              label: isPT ? 'Bíblia' : 'Bible',
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(isDark ? 100 : 25),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(_icons.length, (i) {
+          final isSelected = i == currentIndex;
+          return GestureDetector(
+            onTap: () => onTap(i),
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              width: 52,
+              height: 64,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Active indicator line
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    height: 3,
+                    width: isSelected ? 20 : 0,
+                    margin: const EdgeInsets.only(bottom: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Icon(
+                    isSelected ? _icons[i].$2 : _icons[i].$1,
+                    size: 24,
+                    color: isSelected
+                        ? AppColors.primary
+                        : (isDark
+                            ? Colors.white.withAlpha(140)
+                            : const Color(0xFF9996B5)),
+                  ),
+                ],
+              ),
             ),
-            NavigationDestination(
-              icon: const Icon(Icons.search_outlined),
-              selectedIcon:
-                  const Icon(Icons.search_rounded, color: AppColors.primary),
-              label: isPT ? 'Cenários' : 'Scenarios',
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.auto_stories_outlined),
-              selectedIcon: const Icon(Icons.auto_stories_rounded,
-                  color: AppColors.primary),
-              label: isPT ? 'Esboço' : 'Sermon',
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.library_books_outlined),
-              selectedIcon: const Icon(Icons.library_books_rounded,
-                  color: AppColors.primary),
-              label: isPT ? 'Biblioteca' : 'Library',
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.settings_outlined),
-              selectedIcon: const Icon(Icons.settings_rounded,
-                  color: AppColors.primary),
-              label: isPT ? 'Definições' : 'Settings',
-            ),
-          ],
-          onDestinationSelected: (index) =>
-              setState(() => _currentIndex = index),
-        ),
+          );
+        }),
       ),
     );
   }

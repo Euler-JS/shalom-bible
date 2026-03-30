@@ -23,7 +23,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(isPT ? 'Definições' : 'Settings'),
       ),
@@ -97,6 +97,66 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 24),
 
+          // Appearance
+          _SectionHeader(title: isPT ? 'Aparência' : 'Appearance'),
+          Container(
+            decoration: BoxDecoration(
+              color: context.ac.cardBackground,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: context.ac.cardBorder),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Icon(Icons.dark_mode_outlined, color: AppColors.primary, size: 22),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isPT ? 'Tema' : 'Theme',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: context.ac.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SegmentedButton<ThemeMode>(
+                        segments: [
+                          ButtonSegment(
+                            value: ThemeMode.light,
+                            icon: const Icon(Icons.light_mode_rounded, size: 16),
+                            label: Text(isPT ? 'Claro' : 'Light'),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.dark,
+                            icon: const Icon(Icons.dark_mode_rounded, size: 16),
+                            label: Text(isPT ? 'Escuro' : 'Dark'),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.system,
+                            icon: const Icon(Icons.settings_suggest_rounded, size: 16),
+                            label: Text(isPT ? 'Auto' : 'Auto'),
+                          ),
+                        ],
+                        selected: {settings.themeMode},
+                        onSelectionChanged: (val) =>
+                            ref.read(settingsProvider.notifier).setThemeMode(val.first),
+                        expandedInsets: EdgeInsets.zero,
+                        style: const ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           // Reading
           _SectionHeader(title: isPT ? 'Leitura' : 'Reading'),
           _SettingsTile(
@@ -137,9 +197,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.ac.cardBackground,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.cardBorder),
+              border: Border.all(color: context.ac.cardBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,12 +219,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Shalom Bible',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
-                            color: AppColors.textPrimary,
+                            color: context.ac.textPrimary,
                           ),
                         ),
                         Text(
@@ -208,7 +268,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         'and that understanding brings more freedom and a more informed faith.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     height: 1.7,
-                    color: AppColors.textSecondary,
+                    color: context.ac.textSecondary,
                   ),
                 ),
               ],
@@ -231,10 +291,10 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: AppColors.textSecondary,
+          color: context.ac.textSecondary,
           letterSpacing: 1,
         ),
       ),
@@ -263,9 +323,9 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.ac.cardBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.ac.cardBorder),
       ),
       child: ListTile(
         leading: Icon(icon, color: titleColor ?? AppColors.primary, size: 22),
@@ -273,17 +333,17 @@ class _SettingsTile extends StatelessWidget {
           title,
           style: TextStyle(
             fontWeight: FontWeight.w500,
-            color: titleColor ?? AppColors.textPrimary,
+            color: titleColor ?? context.ac.textPrimary,
           ),
         ),
         subtitle: subtitle != null
             ? Text(subtitle!,
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary))
+                style: TextStyle(
+                    fontSize: 12, color: context.ac.textSecondary))
             : null,
         trailing: trailing ?? (onTap != null
-            ? const Icon(Icons.chevron_right_rounded,
-                color: AppColors.textSecondary)
+            ? Icon(Icons.chevron_right_rounded,
+                color: context.ac.textSecondary)
             : null),
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

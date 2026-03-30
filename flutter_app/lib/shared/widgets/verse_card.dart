@@ -21,9 +21,9 @@ class VerseCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.ac.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.ac.cardBorder),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withAlpha(10),
@@ -71,14 +71,14 @@ class VerseCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: context.ac.surface,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       passage.verseData!.text,
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontStyle: FontStyle.italic,
-                        color: AppColors.textPrimary,
+                        color: context.ac.textPrimary,
                       ),
                     ),
                   ),
@@ -89,7 +89,7 @@ class VerseCard extends StatelessWidget {
                 Text(
                   passage.explanation,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: context.ac.textSecondary,
                     height: 1.6,
                   ),
                 ),

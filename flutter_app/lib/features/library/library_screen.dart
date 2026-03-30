@@ -108,7 +108,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     if (!auth.isLoggedIn) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: SafeArea(
           child: Center(
             child: Padding(
@@ -156,7 +156,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [

@@ -29,6 +29,7 @@ class _SermonGeneratorScreenState
   bool _isSaving = false;
   String? _error;
   bool _saved = false;
+  String _submittedTopic = '';
 
   @override
   void dispose() {
@@ -60,6 +61,7 @@ class _SermonGeneratorScreenState
       _error = null;
       _content = null;
       _saved = false;
+      _submittedTopic = input;
     });
 
     try {
@@ -185,7 +187,7 @@ class _SermonGeneratorScreenState
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusScope.of(context).unfocus(),
@@ -193,58 +195,114 @@ class _SermonGeneratorScreenState
           bottom: false,
           child: Column(
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(10),
+            // Header — full when empty, compact when results exist
+            if (_content == null && !_isLoading) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.auto_stories_rounded,
+                          color: Colors.white, size: 20),
                     ),
-                    child: const Icon(Icons.auto_stories_rounded,
-                        color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    isPT ? 'Gerador de Esboço' : 'Sermon Generator',
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Text(
+                      isPT ? 'Ajudante de Esboço' : 'Outline Assistant',
+                      style: theme.textTheme.headlineMedium,
+                    ),
+                  ],
+                ),
               ),
-            ),
-
-            // Input
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _controller,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: isPT
-                          ? 'Digite um tema, passagem ou situação para pregar...'
-                          : 'Enter a theme, passage or situation to preach about...',
-                      hintMaxLines: 3,
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _controller,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: isPT
+                            ? 'Digite um tema, passagem ou situação para pregar...'
+                            : 'Enter a theme, passage or situation to preach about...',
+                        hintMaxLines: 3,
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
                     ),
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: AppButton(
-                      label: isPT ? 'Gerar Esboço' : 'Generate Outline',
-                      icon: Icons.auto_awesome,
-                      onPressed: _isLoading ? null : _generate,
-                      isLoading: _isLoading,
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: AppButton(
+                        label: isPT ? 'Gerar Esboço' : 'Generate Outline',
+                        icon: Icons.auto_awesome,
+                        onPressed: _isLoading ? null : _generate,
+                        isLoading: _isLoading,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ] else ...[
+              // Compact bar
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: context.ac.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: context.ac.cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.auto_stories_rounded,
+                          color: Colors.white, size: 14),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _submittedTopic,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: context.ac.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => setState(() {
+                        _content = null;
+                        _error = null;
+                      }),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        isPT ? 'Novo' : 'New',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
 
             // Content
             Expanded(
@@ -282,7 +340,7 @@ class _SermonGeneratorScreenState
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
-                  ?.copyWith(color: AppColors.textSecondary),
+                  ?.copyWith(color: context.ac.textSecondary),
             ),
           ],
         ),
@@ -306,7 +364,7 @@ class _SermonGeneratorScreenState
                   : 'Describe the theme or passage\nand AI will generate a complete outline',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: context.ac.textSecondary,
                     height: 1.6,
                   ),
             ),
@@ -328,7 +386,15 @@ class _SermonGeneratorScreenState
                 child: OutlinedButton.icon(
                   onPressed: _copy,
                   icon: const Icon(Icons.copy_rounded, size: 16),
-                  label: Text(isPT ? 'Copiar' : 'Copy'),
+                  label: Text(
+                    isPT ? 'Copiar' : 'Copy',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -336,7 +402,15 @@ class _SermonGeneratorScreenState
                 child: OutlinedButton.icon(
                   onPressed: _share,
                   icon: const Icon(Icons.share_rounded, size: 16),
-                  label: Text(isPT ? 'Partilhar' : 'Share'),
+                  label: Text(
+                    isPT ? 'Partilhar' : 'Share',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -344,7 +418,15 @@ class _SermonGeneratorScreenState
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : _generate,
                   icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: Text(isPT ? 'Regenerar' : 'Regenerate'),
+                  label: Text(
+                    isPT ? 'Regenerar' : 'Redo',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
             ],
@@ -451,9 +533,9 @@ class _SectionCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.ac.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -478,7 +560,7 @@ class _SectionCard extends StatelessWidget {
             content,
             style: isTitle
                 ? Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: context.ac.textPrimary,
                     )
                 : Theme.of(context).textTheme.bodyMedium?.copyWith(
                       height: 1.7,
@@ -507,7 +589,7 @@ class _PointCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
         borderRadius: BorderRadius.circular(14),
         border: Border(left: BorderSide(color: AppColors.primary, width: 4)),
       ),
@@ -524,8 +606,8 @@ class _PointCard extends StatelessWidget {
                 ),
                 child: Text(
                   '${isPT ? 'Ponto' : 'Point'} $number',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -553,17 +635,17 @@ class _PointCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.secondary.withAlpha(30),
+                          color: AppColors.secondary.withAlpha(25),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: AppColors.secondary.withAlpha(80)),
+                              color: AppColors.secondary.withAlpha(100)),
                         ),
                         child: Text(
                           v,
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF8B6914),
+                            color: AppColors.secondary,
                           ),
                         ),
                       ))
@@ -591,9 +673,9 @@ class _IllustrationsCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: Theme.of(context).extension<AppAdaptiveColors>()!.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.ac.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,8 +712,8 @@ class _IllustrationsCard extends StatelessWidget {
                       alignment: Alignment.center,
                       child: Text(
                         '${e.key + 1}',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
