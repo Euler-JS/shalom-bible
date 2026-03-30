@@ -1,0 +1,463 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_theme.dart';
+import '../../data/models/bible_verse.dart';
+import '../../data/remote/openai_service.dart';
+import '../../data/local/bible_database.dart';
+import '../../shared/providers/auth_provider.dart';
+import '../../shared/providers/settings_provider.dart';
+import '../../shared/widgets/app_button.dart';
+import '../../shared/widgets/loading_overlay.dart';
+import '../../shared/widgets/verse_card.dart';
+import '../../data/remote/api_client.dart';
+
+class ScenarioSearchScreen extends ConsumerStatefulWidget {
+  const ScenarioSearchScreen({super.key});
+
+  @override
+  ConsumerState<ScenarioSearchScreen> createState() =>
+      _ScenarioSearchScreenState();
+}
+
+class _ScenarioSearchScreenState
+    extends ConsumerState<ScenarioSearchScreen> {
+  final _controller = TextEditingController();
+  List<ScenarioPassage> _passages = [];
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search() async {
+    final input = _controller.text.trim();
+    if (input.isEmpty) return;
+
+    final auth = ref.read(authProvider);
+    final settings = ref.read(settingsProvider);
+
+    // Check if logged in for usage tracking
+    if (auth.isLoggedIn) {
+      final allowed = await ApiClient.instance.incrementUsage('scenarioSearch');
+      if (!allowed) {
+        setState(() => _error =
+            settings.language == 'pt'
+                ? 'Limite semanal atingido (3 buscas). Actualiza para Premium.'
+                : 'Weekly limit reached (3 searches). Upgrade to Premium.');
+        return;
+      }
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _passages = [];
+    });
+
+    try {
+      final passages = await OpenAIService.instance.searchByScenario(
+        scenario: input,
+        language: settings.language,
+        isPremium: auth.user?.isPremium ?? false,
+      );
+
+      // Fetch verse texts from local DB
+      final enriched = <ScenarioPassage>[];
+      for (final p in passages) {
+        final verse = await BibleDatabase.instance.getVerseByReference(
+          translation: settings.translation,
+          reference: p.reference,
+        );
+        enriched.add(ScenarioPassage(
+          reference: p.reference,
+          explanation: p.explanation,
+          verseData: verse,
+        ));
+      }
+
+      setState(() {
+        _passages = enriched;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = e.toString().contains('OpenAI API key not configured')
+            ? 'Chave da API OpenAI não configurada. Vai às Definições.'
+            : 'Erro ao buscar passagens. Verifica a tua ligação à internet.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider);
+    final isPT = settings.language == 'pt';
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.search_rounded,
+                            color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        isPT ? 'Busca por Cenário' : 'Scenario Search',
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    isPT
+                        ? 'Descreve a tua situação e a IA encontra versículos relevantes'
+                        : 'Describe your situation and AI finds relevant verses',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+
+            // Search input
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _controller,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: isPT
+                          ? 'Descreve a tua situação ou o que estás a sentir...'
+                          : 'Describe your situation or what you are feeling...',
+                      hintMaxLines: 3,
+                    ),
+                    textCapitalization: TextCapitalization.sentences,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: AppButton(
+                      label: isPT
+                          ? 'Encontrar Passagens'
+                          : 'Find Passages',
+                      icon: Icons.auto_awesome,
+                      onPressed: _isLoading ? null : _search,
+                      isLoading: _isLoading,
+                    ),
+                  ),
+
+                  // Free plan hint
+                  const SizedBox(height: 8),
+                  Text(
+                    isPT
+                        ? '3 buscas por semana no plano gratuito'
+                        : '3 searches per week on the free plan',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+
+            // Results
+            Expanded(
+              child: _isLoading
+                  ? AILoadingWidget(
+                      message: isPT
+                          ? 'A IA está a buscar versículos...'
+                          : 'AI is searching for verses...',
+                    )
+                  : _error != null
+                      ? _buildError()
+                      : _passages.isEmpty
+                          ? _buildEmptyState(isPT)
+                          : _buildResults(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline,
+                color: AppColors.error, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isPT) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.menu_book_outlined,
+                size: 64, color: AppColors.primary.withAlpha(80)),
+            const SizedBox(height: 16),
+            Text(
+              isPT
+                  ? 'Escreve o que estás a sentir\ne a IA encontrará os versículos certos'
+                  : 'Write what you\'re feeling\nand AI will find the right verses',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    height: 1.6,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResults() {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      itemCount: _passages.length,
+      itemBuilder: (context, index) {
+        return VerseCard(
+          passage: _passages[index],
+          onViewContext: () => _showHistoricalContext(_passages[index]),
+        );
+      },
+    );
+  }
+
+  void _showHistoricalContext(ScenarioPassage passage) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _HistoricalContextSheet(passage: passage),
+    );
+  }
+}
+
+class _HistoricalContextSheet extends ConsumerStatefulWidget {
+  final ScenarioPassage passage;
+
+  const _HistoricalContextSheet({required this.passage});
+
+  @override
+  ConsumerState<_HistoricalContextSheet> createState() =>
+      _HistoricalContextSheetState();
+}
+
+class _HistoricalContextSheetState
+    extends ConsumerState<_HistoricalContextSheet> {
+  String? _context;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final settings = ref.read(settingsProvider);
+    final auth = ref.read(authProvider);
+
+    try {
+      // Parse book and chapter from reference
+      final parts = widget.passage.reference.split(' ');
+      final chapterVerse = parts.last.split(':');
+      final book = parts.sublist(0, parts.length - 1).join(' ');
+      final chapter = int.tryParse(chapterVerse.first) ?? 1;
+
+      final result = await OpenAIService.instance.getHistoricalContext(
+        book: book,
+        chapter: chapter,
+        language: settings.language,
+        isPremium: auth.user?.isPremium ?? false,
+      );
+
+      if (mounted) setState(() { _context = result; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      maxChildSize: 0.95,
+      builder: (ctx, scroll) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Contexto Histórico — ${widget.passage.reference}',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  : _context == null
+                      ? const Center(child: Text('Erro ao carregar contexto.'))
+                      : SingleChildScrollView(
+                          controller: scroll,
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                          child: _ContextContent(raw: _context!),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContextContent extends StatelessWidget {
+  final String raw;
+
+  const _ContextContent({required this.raw});
+
+  @override
+  Widget build(BuildContext context) {
+    try {
+      // Parse JSON context
+      final json = _parseJson(raw);
+      if (json == null) return Text(raw);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (json['timePeriod'] != null)
+            _ContextItem(icon: Icons.schedule, label: 'Período', text: json['timePeriod'].toString()),
+          if (json['author'] != null)
+            _ContextItem(icon: Icons.person, label: 'Autor', text: json['author'].toString()),
+          if (json['audience'] != null)
+            _ContextItem(icon: Icons.groups, label: 'Destinatários', text: json['audience'].toString()),
+          if (json['geographicContext'] != null)
+            _ContextItem(icon: Icons.location_on, label: 'Contexto Geográfico', text: json['geographicContext'].toString()),
+          if (json['purpose'] != null)
+            _ContextItem(icon: Icons.lightbulb_outline, label: 'Propósito', text: json['purpose'].toString()),
+          if (json['summary'] != null)
+            _ContextItem(icon: Icons.summarize, label: 'Resumo', text: json['summary'].toString()),
+        ],
+      );
+    } catch (_) {
+      return Text(raw);
+    }
+  }
+
+  Map<String, dynamic>? _parseJson(String raw) {
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class _ContextItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String text;
+
+  const _ContextItem({
+    required this.icon,
+    required this.label,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              text,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    height: 1.6,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
