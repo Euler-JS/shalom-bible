@@ -47,21 +47,21 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   Future<void> setTranslation(String translation) async {
+    state = state.copyWith(translation: translation);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.selectedTranslationKey, translation);
-    state = state.copyWith(translation: translation);
   }
 
   Future<void> setLanguage(String language) async {
+    state = state.copyWith(language: language);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.selectedLanguageKey, language);
-    state = state.copyWith(language: language);
   }
 
   Future<void> setFontSize(double size) async {
+    state = state.copyWith(fontSize: size);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(AppConstants.fontSizeKey, size);
-    state = state.copyWith(fontSize: size);
   }
 
   Future<void> completeOnboarding() async {

@@ -24,49 +24,57 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   int _totalChapters = 1;
   List<BibleVerse> _verses = [];
   bool _loading = false;
+  String? _currentTranslation;
 
   @override
   void initState() {
     super.initState();
-    _loadBooks();
+    // Defer initial load so provider is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _currentTranslation = ref.read(settingsProvider).translation;
+      _loadBooks(_currentTranslation!);
+    });
   }
 
-  Future<void> _loadBooks() async {
-    final settings = ref.read(settingsProvider);
-    final books = await BibleDatabase.instance.getBooks(settings.translation);
-    if (books.isEmpty) {
-      // Fallback to constants if DB not loaded
-      setState(() {
-        _books = settings.translation == 'ARC'
+  Future<void> _loadBooks(String translation) async {
+    final books = await BibleDatabase.instance.getBooks(translation);
+    if (!mounted) return;
+
+    // Try to keep same book position when switching translations
+    final currentIdx = _books.indexOf(_selectedBook ?? '');
+    final newBooks = books.isNotEmpty
+        ? books
+        : (translation == 'ARC'
             ? AppConstants.allBooksARC()
-            : AppConstants.allBooksKJV();
-        _selectedBook = _books.first;
-      });
-    } else {
-      setState(() {
-        _books = books;
-        _selectedBook = books.first;
-      });
-    }
-    await _loadChapter();
+            : AppConstants.allBooksKJV());
+
+    final newBook = (currentIdx > 0 && currentIdx < newBooks.length)
+        ? newBooks[currentIdx]
+        : newBooks.first;
+
+    setState(() {
+      _books = newBooks;
+      _selectedBook = newBook;
+    });
+    await _loadChapter(translation);
   }
 
-  Future<void> _loadChapter() async {
+  Future<void> _loadChapter(String translation) async {
     if (_selectedBook == null) return;
-    final settings = ref.read(settingsProvider);
+    if (!mounted) return;
     setState(() => _loading = true);
 
     final count = await BibleDatabase.instance.getChapterCount(
-      translation: settings.translation,
+      translation: translation,
       book: _selectedBook!,
     );
-
     final verses = await BibleDatabase.instance.getChapter(
-      translation: settings.translation,
+      translation: translation,
       book: _selectedBook!,
       chapter: _selectedChapter,
     );
 
+    if (!mounted) return;
     setState(() {
       _totalChapters = count > 0 ? count : 150;
       _verses = verses;
@@ -75,35 +83,35 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   }
 
   void _previousChapter() {
+    final translation = ref.read(settingsProvider).translation;
     if (_selectedChapter > 1) {
       setState(() => _selectedChapter--);
-      _loadChapter();
+      _loadChapter(translation);
     } else {
-      // Go to previous book
       final idx = _books.indexOf(_selectedBook!);
       if (idx > 0) {
         setState(() {
           _selectedBook = _books[idx - 1];
           _selectedChapter = 1;
         });
-        _loadChapter();
+        _loadChapter(translation);
       }
     }
   }
 
   void _nextChapter() {
+    final translation = ref.read(settingsProvider).translation;
     if (_selectedChapter < _totalChapters) {
       setState(() => _selectedChapter++);
-      _loadChapter();
+      _loadChapter(translation);
     } else {
-      // Go to next book
       final idx = _books.indexOf(_selectedBook!);
       if (idx < _books.length - 1) {
         setState(() {
           _selectedBook = _books[idx + 1];
           _selectedChapter = 1;
         });
-        _loadChapter();
+        _loadChapter(translation);
       }
     }
   }
@@ -113,6 +121,14 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final settings = ref.watch(settingsProvider);
     final isPT = settings.language == 'pt';
     final theme = Theme.of(context);
+
+    // React to translation changes (e.g. from settings screen or prefs load)
+    ref.listen<SettingsState>(settingsProvider, (prev, next) {
+      if (prev?.translation != next.translation) {
+        _currentTranslation = next.translation;
+        _loadBooks(next.translation);
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -135,7 +151,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               selected: {settings.translation},
               onSelectionChanged: (val) {
                 ref.read(settingsProvider.notifier).setTranslation(val.first);
-                _loadBooks();
+                // ref.listen in build() will call _loadBooks with the new translation
               },
               style: ButtonStyle(
                 textStyle: WidgetStateProperty.all(
@@ -154,15 +170,17 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
             selectedChapter: _selectedChapter,
             totalChapters: _totalChapters,
             onBookChanged: (book) {
+              final translation = ref.read(settingsProvider).translation;
               setState(() {
                 _selectedBook = book;
                 _selectedChapter = 1;
               });
-              _loadChapter();
+              _loadChapter(translation);
             },
             onChapterChanged: (ch) {
+              final translation = ref.read(settingsProvider).translation;
               setState(() => _selectedChapter = ch);
-              _loadChapter();
+              _loadChapter(translation);
             },
           ),
 
