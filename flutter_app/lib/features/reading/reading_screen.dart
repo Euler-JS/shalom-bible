@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
@@ -26,6 +27,10 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   List<BibleVerse> _verses = [];
   bool _loading = false;
   String? _currentTranslation;
+
+  // Multi-verse selection
+  bool _selectionMode = false;
+  final Set<int> _selectedIndices = {};
 
   @override
   void initState() {
@@ -83,7 +88,66 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     });
   }
 
+  void _enterSelectionMode(int index) {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _selectionMode = true;
+      _selectedIndices.add(index);
+    });
+  }
+
+  void _toggleSelection(int index) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedIndices.contains(index)) {
+        _selectedIndices.remove(index);
+        if (_selectedIndices.isEmpty) _selectionMode = false;
+      } else {
+        _selectedIndices.add(index);
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIndices.clear();
+    });
+  }
+
+  String _buildSelectedText(String language) {
+    final sorted = _selectedIndices.toList()..sort();
+    final lines = sorted.map((i) {
+      final v = _verses[i];
+      return '«${v.text}»\n— ${v.book} ${v.chapter}:${v.verse}';
+    });
+    return lines.join('\n\n');
+  }
+
+  void _copySelected(String language) {
+    final text = _buildSelectedText(language);
+    final n = _selectedIndices.length;
+    Clipboard.setData(ClipboardData(text: text));
+    _exitSelectionMode();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(language == 'pt'
+            ? (n > 1 ? '$n versículos copiados' : 'Versículo copiado')
+            : (n > 1 ? '$n verses copied' : 'Verse copied')),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _shareSelected(String language) {
+    final text = _buildSelectedText(language);
+    _exitSelectionMode();
+    Share.share(text);
+  }
+
   void _previousChapter() {
+    _exitSelectionMode();
     final translation = ref.read(settingsProvider).translation;
     if (_selectedChapter > 1) {
       setState(() => _selectedChapter--);
@@ -101,6 +165,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   }
 
   void _nextChapter() {
+    _exitSelectionMode();
     final translation = ref.read(settingsProvider).translation;
     if (_selectedChapter < _totalChapters) {
       setState(() => _selectedChapter++);
@@ -200,10 +265,24 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                             fontSize: settings.fontSize,
                             language: settings.language,
                             isPremium: auth.user?.isPremium ?? false,
+                            selectionMode: _selectionMode,
+                            isSelected: _selectedIndices.contains(index),
+                            onLongPress: () => _enterSelectionMode(index),
+                            onSelect: () => _toggleSelection(index),
                           );
                         },
                       ),
           ),
+
+          // Multi-select action bar
+          if (_selectionMode)
+            _MultiSelectBar(
+              count: _selectedIndices.length,
+              language: settings.language,
+              onCopy: () => _copySelected(settings.language),
+              onShare: () => _shareSelected(settings.language),
+              onCancel: _exitSelectionMode,
+            ),
 
           // Chapter navigation
           _ChapterNavigation(
@@ -469,12 +548,20 @@ class _VerseRow extends StatefulWidget {
   final double fontSize;
   final String language;
   final bool isPremium;
+  final bool selectionMode;
+  final bool isSelected;
+  final VoidCallback onLongPress;
+  final VoidCallback onSelect;
 
   const _VerseRow({
     required this.verse,
     required this.fontSize,
     required this.language,
     required this.isPremium,
+    required this.selectionMode,
+    required this.isSelected,
+    required this.onLongPress,
+    required this.onSelect,
   });
 
   @override
@@ -512,68 +599,142 @@ class _VerseRowState extends State<_VerseRow> {
     );
   }
 
+  String get _verseText =>
+      '«${widget.verse.text}»\n— ${widget.verse.book} ${widget.verse.chapter}:${widget.verse.verse}';
+
+  void _copyVerse() {
+    Clipboard.setData(ClipboardData(text: _verseText));
+    setState(() => _expanded = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(widget.language == 'pt'
+            ? 'Versículo copiado'
+            : 'Verse copied'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _shareVerse() {
+    setState(() => _expanded = false);
+    Share.share(_verseText);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPT = widget.language == 'pt';
+    final isSelected = widget.isSelected;
+    final selectionMode = widget.selectionMode;
     return GestureDetector(
       onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _expanded = !_expanded);
+        if (selectionMode) {
+          widget.onSelect();
+        } else {
+          HapticFeedback.selectionClick();
+          setState(() => _expanded = !_expanded);
+        }
       },
+      onLongPress: selectionMode ? null : widget.onLongPress,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         margin: const EdgeInsets.only(bottom: 4),
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
         decoration: BoxDecoration(
-          color: _expanded
-              ? AppColors.primary.withAlpha(12)
-              : Colors.transparent,
+          color: isSelected
+              ? AppColors.secondary.withAlpha(30)
+              : _expanded
+                  ? AppColors.primary.withAlpha(12)
+                  : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: _expanded
-              ? Border.all(color: AppColors.primary.withAlpha(40))
-              : null,
+          border: isSelected
+              ? Border.all(color: AppColors.secondary.withAlpha(100))
+              : _expanded
+                  ? Border.all(color: AppColors.primary.withAlpha(40))
+                  : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: '${widget.verse.verse}  ',
-                    style: GoogleFonts.inter(
-                      fontSize: widget.fontSize - 4,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.secondary,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${widget.verse.verse}  ',
+                          style: GoogleFonts.inter(
+                            fontSize: widget.fontSize - 4,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                        TextSpan(
+                          text: widget.verse.text,
+                          style: GoogleFonts.merriweather(
+                            fontSize: widget.fontSize,
+                            height: 1.8,
+                            color: Theme.of(context).extension<AppAdaptiveColors>()!.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  TextSpan(
-                    text: widget.verse.text,
-                    style: GoogleFonts.merriweather(
-                      fontSize: widget.fontSize,
-                      height: 1.8,
-                      color: Theme.of(context).extension<AppAdaptiveColors>()!.textPrimary,
+                ),
+                if (selectionMode)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, top: 4),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isSelected ? AppColors.secondary : Colors.transparent,
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.secondary
+                              : context.ac.textSecondary.withAlpha(100),
+                          width: 2,
+                        ),
+                      ),
+                      child: isSelected
+                          ? const Icon(Icons.check_rounded,
+                              size: 14, color: Colors.white)
+                          : null,
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
-            // Action row — shown when verse is selected
-            if (_expanded)
+            // Action row — shown when verse is tapped (not in selection mode)
+            if (_expanded && !selectionMode)
               Padding(
                 padding: const EdgeInsets.only(top: 8, bottom: 4),
-                child: Row(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
                     _ActionChip(
                       icon: Icons.lightbulb_outline_rounded,
                       label: isPT ? 'Explicar' : 'Explain',
                       onTap: _openExplain,
                     ),
-                    const SizedBox(width: 8),
                     _ActionChip(
                       icon: Icons.translate_rounded,
                       label: isPT ? 'Palavras' : 'Words',
                       onTap: _openWordStudy,
+                    ),
+                    _ActionChip(
+                      icon: Icons.copy_rounded,
+                      label: isPT ? 'Copiar' : 'Copy',
+                      onTap: _copyVerse,
+                    ),
+                    _ActionChip(
+                      icon: Icons.share_rounded,
+                      label: isPT ? 'Partilhar' : 'Share',
+                      onTap: _shareVerse,
                     ),
                   ],
                 ),
@@ -621,6 +782,89 @@ class _ActionChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MultiSelectBar extends StatelessWidget {
+  final int count;
+  final String language;
+  final VoidCallback onCopy;
+  final VoidCallback onShare;
+  final VoidCallback onCancel;
+
+  const _MultiSelectBar({
+    required this.count,
+    required this.language,
+    required this.onCopy,
+    required this.onShare,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isPT = language == 'pt';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withAlpha(20),
+        border: Border(
+          top: BorderSide(color: AppColors.secondary.withAlpha(80)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.secondary,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '$count',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isPT
+                  ? (count == 1 ? 'versículo selecionado' : 'versículos selecionados')
+                  : (count == 1 ? 'verse selected' : 'verses selected'),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: context.ac.textPrimary,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onCopy,
+            icon: const Icon(Icons.copy_rounded),
+            tooltip: isPT ? 'Copiar' : 'Copy',
+            color: AppColors.primary,
+            iconSize: 20,
+          ),
+          IconButton(
+            onPressed: onShare,
+            icon: const Icon(Icons.share_rounded),
+            tooltip: isPT ? 'Partilhar' : 'Share',
+            color: AppColors.primary,
+            iconSize: 20,
+          ),
+          IconButton(
+            onPressed: onCancel,
+            icon: const Icon(Icons.close_rounded),
+            tooltip: isPT ? 'Cancelar' : 'Cancel',
+            color: context.ac.textSecondary,
+            iconSize: 20,
+          ),
+        ],
       ),
     );
   }
