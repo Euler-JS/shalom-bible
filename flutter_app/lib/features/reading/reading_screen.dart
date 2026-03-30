@@ -218,6 +218,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
                         itemCount: _verses.length,
                         itemBuilder: (context, index) {
                           final auth = ref.read(authProvider);
@@ -244,6 +246,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   }
 
   void _showHistoricalContext() {
+    FocusScope.of(context).unfocus();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -256,6 +259,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   }
 
   void _showChat() {
+    FocusScope.of(context).unfocus();
     final settings = ref.read(settingsProvider);
     final auth = ref.read(authProvider);
     showModalBottomSheet(
@@ -1399,11 +1403,13 @@ class _BibleChatBottomSheetState
   @override
   Widget build(BuildContext context) {
     final isPT = widget.language == 'pt';
-    return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      maxChildSize: 0.95,
-      minChildSize: 0.5,
-      builder: (ctx, _) => Container(
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.88,
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1456,33 +1462,39 @@ class _BibleChatBottomSheetState
             // Messages
             Expanded(
               child: _messages.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.chat_bubble_outline_rounded,
-                                size: 48, color: AppColors.primary),
-                            const SizedBox(height: 16),
-                            Text(
-                              isPT
-                                  ? 'Faz uma pergunta sobre ${widget.book} ${widget.chapter}.\n\nPor exemplo:\n"O que significa este capítulo?"\n"Quem escreveu este livro?"\n"Por que Deus fez isso?"'
-                                  : 'Ask a question about ${widget.book} ${widget.chapter}.\n\nFor example:\n"What does this chapter mean?"\n"Who wrote this book?"\n"Why did God do this?"',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 14,
-                                height: 1.6,
+                  ? GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () => FocusScope.of(context).unfocus(),
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.chat_bubble_outline_rounded,
+                                  size: 48, color: AppColors.primary),
+                              const SizedBox(height: 16),
+                              Text(
+                                isPT
+                                    ? 'Faz uma pergunta sobre ${widget.book} ${widget.chapter}.\n\nPor exemplo:\n"O que significa este capítulo?"\n"Quem escreveu este livro?"\n"Por que Deus fez isso?"'
+                                    : 'Ask a question about ${widget.book} ${widget.chapter}.\n\nFor example:\n"What does this chapter mean?"\n"Who wrote this book?"\n"Why did God do this?"',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                  height: 1.6,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     )
                   : ListView.builder(
                       controller: _scrollCtrl,
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
                       itemCount: _messages.length,
                       itemBuilder: (_, i) =>
                           _ChatBubble(message: _messages[i]),
@@ -1512,59 +1524,56 @@ class _BibleChatBottomSheetState
                 ),
               ),
             const Divider(height: 1),
-            // Input
-            SafeArea(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 10,
-                  bottom: MediaQuery.of(context).viewInsets.bottom > 0
-                      ? 10
-                      : 16,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _ctrl,
-                        minLines: 1,
-                        maxLines: 4,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: InputDecoration(
-                          hintText: isPT
-                              ? 'Faz uma pergunta...'
-                              : 'Ask a question...',
-                          hintStyle: const TextStyle(
-                              color: AppColors.textSecondary, fontSize: 14),
-                          filled: true,
-                          fillColor: AppColors.surfaceLight,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
-                          ),
+            // Input — sobe com o teclado via AnimatedPadding
+            AnimatedPadding(
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 10,
+                bottom: bottomInset > 0 ? bottomInset + 10 : 24,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _ctrl,
+                      minLines: 1,
+                      maxLines: 4,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText:
+                            isPT ? 'Faz uma pergunta...' : 'Ask a question...',
+                        hintStyle: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 14),
+                        filled: true,
+                        fillColor: AppColors.surfaceLight,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
                         ),
-                        onSubmitted: (_) => _send(),
                       ),
+                      onSubmitted: (_) => _send(),
                     ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: _send,
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        child: const Icon(Icons.send_rounded,
-                            color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _send,
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(22),
                       ),
+                      child: const Icon(Icons.send_rounded,
+                          color: Colors.white, size: 20),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],

@@ -186,8 +186,12 @@ class _SermonGeneratorScreenState
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
           children: [
             // Header
             Padding(
@@ -258,6 +262,7 @@ class _SermonGeneratorScreenState
             ),
           ],
         ),
+      ),
       ),
     );
   }

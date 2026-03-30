@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
-import '../../data/remote/openai_service.dart';
+
 import '../../shared/providers/auth_provider.dart';
 import '../../shared/providers/settings_provider.dart';
 import '../auth/auth_screen.dart';
@@ -14,41 +14,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final _apiKeyCtrl = TextEditingController();
-  bool _hasApiKey = false;
-  bool _obscureApiKey = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkApiKey();
-  }
-
-  @override
-  void dispose() {
-    _apiKeyCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _checkApiKey() async {
-    final has = await OpenAIService.instance.hasApiKey();
-    if (mounted) setState(() => _hasApiKey = has);
-  }
-
-  Future<void> _saveApiKey() async {
-    final key = _apiKeyCtrl.text.trim();
-    if (key.isEmpty) return;
-    await OpenAIService.instance.saveApiKey(key);
-    _apiKeyCtrl.clear();
-    setState(() => _hasApiKey = true);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Chave API guardada.'),
-            backgroundColor: AppColors.success),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,10 +132,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 24),
 
-          // OpenAI API Key
-          _SectionHeader(title: 'OpenAI API Key'),
+          // About
+          _SectionHeader(title: isPT ? 'Sobre' : 'About'),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
@@ -181,75 +146,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(
-                      _hasApiKey
-                          ? Icons.check_circle_rounded
-                          : Icons.key_rounded,
-                      color: _hasApiKey ? AppColors.success : AppColors.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _hasApiKey
-                          ? (isPT ? 'Chave API configurada' : 'API key configured')
-                          : (isPT
-                              ? 'Chave API não configurada'
-                              : 'API key not configured'),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color:
-                            _hasApiKey ? AppColors.success : AppColors.textPrimary,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      child: const Icon(Icons.menu_book_rounded,
+                          color: Colors.white, size: 20),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isPT
-                      ? 'Necessária para usar as funcionalidades de IA. Obtém a tua chave em platform.openai.com'
-                      : 'Required to use AI features. Get your key at platform.openai.com',
-                  style: theme.textTheme.bodySmall,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _apiKeyCtrl,
-                  obscureText: _obscureApiKey,
-                  decoration: InputDecoration(
-                    hintText: 'sk-...',
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton(
-                          icon: Icon(_obscureApiKey
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
-                          onPressed: () => setState(
-                              () => _obscureApiKey = !_obscureApiKey),
+                        const Text(
+                          'Shalom Bible',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          'v1.0.0',
+                          style: theme.textTheme.bodySmall,
                         ),
                       ],
                     ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(height: 1),
+                const SizedBox(height: 16),
+                Text(
+                  isPT ? 'A nossa missão' : 'Our mission',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: AppColors.primary,
+                    letterSpacing: 0.3,
                   ),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _saveApiKey,
-                    child: Text(isPT ? 'Guardar Chave' : 'Save Key'),
+                const SizedBox(height: 8),
+                Text(
+                  isPT
+                      ? 'A Bíblia foi escrita originalmente em hebraico, aramaico e grego — línguas com estruturas e nuances muito diferentes das nossas. '
+                        'Palavras como hesed (amor leal em hebraico) ou agape (amor incondicional em grego) carregam profundidades que as traduções modernas nem sempre conseguem transmitir na totalidade.\n\n'
+                        'A isto acrescenta-se a distância histórica e cultural: costumes, figuras de linguagem e referências do Oriente Próximo antigo que eram óbvias para os leitores originais podem parecer estranhas hoje. '
+                        'E a Bíblia contém géneros literários muito distintos — poesia, profecia, lei, narrativa, carta — que pedem leituras diferentes.\n\n'
+                        'O Shalom Bible existe para tornar esse conhecimento acessível a qualquer pessoa. '
+                        'Sem impor uma denominação, sem julgamentos — apenas explicações honestas, contexto real e espaço para as tuas próprias perguntas.\n\n'
+                        'O nosso desejo é simples: que quem abre a Bíblia a compreenda melhor, '
+                        'e que esse entendimento traga mais liberdade e uma fé mais consciente.'
+                      : 'The Bible was originally written in Hebrew, Aramaic, and Greek — languages with structures and nuances very different from our own. '
+                        'Words like hesed (loyal love in Hebrew) or agape (unconditional love in Greek) carry depths that modern translations don\'t always fully convey.\n\n'
+                        'Add to this the historical and cultural distance: customs, figures of speech, and references from the ancient Near East that were obvious to original readers can feel strange today. '
+                        'And the Bible contains very distinct literary genres — poetry, prophecy, law, narrative, letter — each requiring a different kind of reading.\n\n'
+                        'Shalom Bible exists to make this knowledge accessible to anyone. '
+                        'Without imposing a denomination, without judgment — just honest explanations, real context, and space for your own questions.\n\n'
+                        'Our desire is simple: that whoever opens the Bible understands it better, '
+                        'and that understanding brings more freedom and a more informed faith.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    height: 1.7,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Backend URL (for developers)
-          _SectionHeader(title: isPT ? 'Avançado' : 'Advanced'),
-          _SettingsTile(
-            icon: Icons.info_outline_rounded,
-            title: 'Shalom Bible v1.0.0',
-            subtitle: isPT ? 'Desenvolvido com Flutter + AI' : 'Built with Flutter + AI',
           ),
         ],
       ),

@@ -87,13 +87,14 @@ class MainNavigation extends ConsumerStatefulWidget {
 }
 
 class _MainNavigationState extends ConsumerState<MainNavigation> {
-  int _currentIndex = 1; // Start on Reading tab
+  int _currentIndex = 0; // Start on Bible tab
 
   final List<Widget> _screens = const [
-    ScenarioSearchScreen(),
     ReadingScreen(),
+    ScenarioSearchScreen(),
     SermonGeneratorScreen(),
     LibraryScreen(),
+    SettingsScreen(),
   ];
 
   @override
@@ -112,24 +113,22 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         ),
         child: NavigationBar(
           selectedIndex: _currentIndex,
-          onDestinationSelected: (index) =>
-              setState(() => _currentIndex = index),
           backgroundColor: Colors.white,
           indicatorColor: AppColors.primary.withAlpha(20),
           surfaceTintColor: Colors.transparent,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: [
             NavigationDestination(
+              icon: const Icon(Icons.menu_book_outlined),
+              selectedIcon: const Icon(Icons.menu_book_rounded,
+                  color: AppColors.primary),
+              label: isPT ? 'Bíblia' : 'Bible',
+            ),
+            NavigationDestination(
               icon: const Icon(Icons.search_outlined),
               selectedIcon:
                   const Icon(Icons.search_rounded, color: AppColors.primary),
               label: isPT ? 'Cenários' : 'Scenarios',
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.menu_book_outlined),
-              selectedIcon: const Icon(Icons.menu_book_rounded,
-                  color: AppColors.primary),
-              label: isPT ? 'Leitura' : 'Reading',
             ),
             NavigationDestination(
               icon: const Icon(Icons.auto_stories_outlined),
@@ -143,18 +142,16 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
                   color: AppColors.primary),
               label: isPT ? 'Biblioteca' : 'Library',
             ),
+            NavigationDestination(
+              icon: const Icon(Icons.settings_outlined),
+              selectedIcon: const Icon(Icons.settings_rounded,
+                  color: AppColors.primary),
+              label: isPT ? 'Definições' : 'Settings',
+            ),
           ],
+          onDestinationSelected: (index) =>
+              setState(() => _currentIndex = index),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.small(
-        heroTag: 'settings_fab',
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.settings_outlined, size: 20),
       ),
     );
   }

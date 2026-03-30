@@ -101,8 +101,12 @@ class _ScenarioSearchScreenState
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
           children: [
             // Header
             Container(
@@ -199,6 +203,7 @@ class _ScenarioSearchScreenState
             ),
           ],
         ),
+      ),
       ),
     );
   }
