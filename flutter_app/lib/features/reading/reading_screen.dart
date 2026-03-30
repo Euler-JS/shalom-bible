@@ -135,7 +135,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               selected: {settings.translation},
               onSelectionChanged: (val) {
                 ref.read(settingsProvider.notifier).setTranslation(val.first);
-                _loadChapter();
+                _loadBooks();
               },
               style: ButtonStyle(
                 textStyle: WidgetStateProperty.all(
