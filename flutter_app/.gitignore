@@ -1,3 +1,20 @@
+# Flutter/Dart standard exclusions
+.dart_tool/
+build/
+.idea/
+.vscode/
+
+# Platform-specific build folders
+android/.gradle/
+android/build/
+ios/Pods/
+linux/build/
+macos/build/
+windows/build/
+
+# Generated files
+pubspec.lock
+*.iml
 # Miscellaneous
 *.class
 *.log
