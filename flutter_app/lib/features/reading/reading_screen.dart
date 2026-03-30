@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
@@ -136,6 +137,11 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
         title: Text(isPT ? 'Leitura' : 'Reading'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.chat_outlined),
+            tooltip: isPT ? 'Perguntar à IA' : 'Ask AI',
+            onPressed: _selectedBook != null ? _showChat : null,
+          ),
+          IconButton(
             icon: const Icon(Icons.history_edu_rounded),
             tooltip: isPT ? 'Contexto Histórico' : 'Historical Context',
             onPressed: _selectedBook != null ? _showHistoricalContext : null,
@@ -214,9 +220,12 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                         itemCount: _verses.length,
                         itemBuilder: (context, index) {
+                          final auth = ref.read(authProvider);
                           return _VerseRow(
                             verse: _verses[index],
                             fontSize: settings.fontSize,
+                            language: settings.language,
+                            isPremium: auth.user?.isPremium ?? false,
                           );
                         },
                       ),
@@ -242,6 +251,22 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       builder: (ctx) => _HistoricalContextBottomSheet(
         book: _selectedBook!,
         chapter: _selectedChapter,
+      ),
+    );
+  }
+
+  void _showChat() {
+    final settings = ref.read(settingsProvider);
+    final auth = ref.read(authProvider);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _BibleChatBottomSheet(
+        book: _selectedBook!,
+        chapter: _selectedChapter,
+        language: settings.language,
+        isPremium: auth.user?.isPremium ?? false,
       ),
     );
   }
@@ -334,52 +359,716 @@ class _BookChapterSelector extends StatelessWidget {
 class _VerseRow extends StatefulWidget {
   final BibleVerse verse;
   final double fontSize;
+  final String language;
+  final bool isPremium;
 
-  const _VerseRow({required this.verse, required this.fontSize});
+  const _VerseRow({
+    required this.verse,
+    required this.fontSize,
+    required this.language,
+    required this.isPremium,
+  });
 
   @override
   State<_VerseRow> createState() => _VerseRowState();
 }
 
 class _VerseRowState extends State<_VerseRow> {
-  bool _highlighted = false;
+  bool _expanded = false;
+
+  void _openExplain() {
+    setState(() => _expanded = false);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ExplainBottomSheet(
+        verse: widget.verse,
+        language: widget.language,
+        isPremium: widget.isPremium,
+      ),
+    );
+  }
+
+  void _openWordStudy() {
+    setState(() => _expanded = false);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _WordStudyBottomSheet(
+        verse: widget.verse,
+        language: widget.language,
+        isPremium: widget.isPremium,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPT = widget.language == 'pt';
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _expanded = !_expanded);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
+        decoration: BoxDecoration(
+          color: _expanded
+              ? AppColors.primary.withAlpha(12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: _expanded
+              ? Border.all(color: AppColors.primary.withAlpha(40))
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${widget.verse.verse}  ',
+                    style: GoogleFonts.inter(
+                      fontSize: widget.fontSize - 4,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                  TextSpan(
+                    text: widget.verse.text,
+                    style: GoogleFonts.merriweather(
+                      fontSize: widget.fontSize,
+                      height: 1.8,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Action row — shown when verse is selected
+            if (_expanded)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 4),
+                child: Row(
+                  children: [
+                    _ActionChip(
+                      icon: Icons.lightbulb_outline_rounded,
+                      label: isPT ? 'Explicar' : 'Explain',
+                      onTap: _openExplain,
+                    ),
+                    const SizedBox(width: 8),
+                    _ActionChip(
+                      icon: Icons.translate_rounded,
+                      label: isPT ? 'Palavras' : 'Words',
+                      onTap: _openWordStudy,
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => setState(() => _highlighted = !_highlighted),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 4),
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: _highlighted
-              ? AppColors.secondary.withAlpha(30)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: '${widget.verse.verse}  ',
-                style: GoogleFonts.inter(
-                  fontSize: widget.fontSize - 4,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.secondary,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExplainBottomSheet extends ConsumerStatefulWidget {
+  final BibleVerse verse;
+  final String language;
+  final bool isPremium;
+
+  const _ExplainBottomSheet({
+    required this.verse,
+    required this.language,
+    required this.isPremium,
+  });
+
+  @override
+  ConsumerState<_ExplainBottomSheet> createState() =>
+      _ExplainBottomSheetState();
+}
+
+class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
+  String? _explanation;
+  String? _context;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final isPT = widget.language == 'pt';
+    try {
+      final hasKey = await OpenAIService.instance.hasApiKey();
+      if (!hasKey) {
+        if (!mounted) return;
+        setState(() {
+          _error = isPT
+              ? 'Chave OpenAI não configurada. Vai a Definições.'
+              : 'OpenAI key not configured. Go to Settings.';
+          _loading = false;
+        });
+        return;
+      }
+      final raw = await OpenAIService.instance.explainVerse(
+        reference: widget.verse.reference,
+        verseText: widget.verse.text,
+        language: widget.language,
+        isPremium: widget.isPremium,
+      );
+      if (!mounted) return;
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      setState(() {
+        _explanation = json['explanation']?.toString() ?? '';
+        _context = json['context']?.toString();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPT = widget.language == 'pt';
+    return DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      maxChildSize: 0.85,
+      builder: (ctx, scroll) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Row(
+                children: [
+                  const Icon(Icons.lightbulb_rounded,
+                      color: AppColors.secondary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isPT ? 'Explicação' : 'Explanation',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          widget.verse.reference,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Verse text
+            Container(
+              margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withAlpha(15),
+                borderRadius: BorderRadius.circular(10),
+                border:
+                    Border.all(color: AppColors.secondary.withAlpha(60)),
+              ),
+              child: Text(
+                widget.verse.text,
+                style: GoogleFonts.merriweather(
+                  fontSize: 13,
+                  height: 1.6,
+                  color: AppColors.textPrimary,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
-              TextSpan(
-                text: widget.verse.text,
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            Expanded(
+              child: _loading
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(
+                              color: AppColors.primary),
+                          const SizedBox(height: 12),
+                          Text(
+                            isPT ? 'A explicar...' : 'Explaining...',
+                            style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(_error!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: AppColors.textSecondary)),
+                          ),
+                        )
+                      : SingleChildScrollView(
+                          controller: scroll,
+                          padding:
+                              const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _explanation ?? '',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  height: 1.7,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              if (_context != null &&
+                                  _context!.isNotEmpty &&
+                                  _context != 'null') ...[
+                                const SizedBox(height: 20),
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceLight,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: AppColors.cardBorder),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.info_outline,
+                                              size: 14,
+                                              color: AppColors.primary),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            isPT
+                                                ? 'Contexto histórico'
+                                                : 'Historical context',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        _context!,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          height: 1.6,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WordStudyBottomSheet extends ConsumerStatefulWidget {
+  final BibleVerse verse;
+  final String language;
+  final bool isPremium;
+
+  const _WordStudyBottomSheet({
+    required this.verse,
+    required this.language,
+    required this.isPremium,
+  });
+
+  @override
+  ConsumerState<_WordStudyBottomSheet> createState() =>
+      _WordStudyBottomSheetState();
+}
+
+class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
+  List<WordStudyEntry> _words = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final isPT = widget.language == 'pt';
+    try {
+      final hasKey = await OpenAIService.instance.hasApiKey();
+      if (!hasKey) {
+        if (!mounted) return;
+        setState(() {
+          _error = isPT
+              ? 'Chave OpenAI não configurada.\nVai a Definições e adiciona a tua chave API.'
+              : 'OpenAI key not configured.\nGo to Settings and add your API key.';
+          _loading = false;
+        });
+        return;
+      }
+
+      final words = await OpenAIService.instance.getVerseWordStudy(
+        reference: widget.verse.reference,
+        verseText: widget.verse.text,
+        language: widget.language,
+        isPremium: widget.isPremium,
+      );
+      if (!mounted) return;
+      setState(() {
+        _words = words;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      setState(() {
+        _error = isPT
+            ? 'Erro ao carregar:\n$msg'
+            : 'Error loading:\n$msg';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPT = widget.language == 'pt';
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      maxChildSize: 0.95,
+      builder: (ctx, scroll) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Row(
+                children: [
+                  const Icon(Icons.translate_rounded, color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isPT ? 'Estudo das Palavras' : 'Word Study',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          widget.verse.reference,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Verse text preview
+            Container(
+              margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Text(
+                widget.verse.text,
                 style: GoogleFonts.merriweather(
-                  fontSize: widget.fontSize,
-                  height: 1.8,
-                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  height: 1.6,
+                  color: AppColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            Expanded(
+              child: _loading
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(
+                              color: AppColors.primary),
+                          const SizedBox(height: 12),
+                          Text(
+                            isPT
+                                ? 'A analisar as palavras originais...'
+                                : 'Analyzing original words...',
+                            style: const TextStyle(
+                                color: AppColors.textSecondary, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(_error!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: AppColors.textSecondary)),
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: scroll,
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                          itemCount: _words.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (_, i) =>
+                              _WordStudyCard(entry: _words[i], isPT: isPT),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WordStudyCard extends StatelessWidget {
+  final WordStudyEntry entry;
+  final bool isPT;
+
+  const _WordStudyCard({required this.entry, required this.isPT});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: translated word → original word
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '"${entry.translatedWord}"',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward_rounded,
+                  size: 14, color: AppColors.textSecondary),
+              const SizedBox(width: 8),
+              Text(
+                entry.originalWord,
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 6),
+          // Transliteration + Strongs number
+          Row(
+            children: [
+              Text(
+                entry.transliteration,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.secondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              if (entry.strongsNumber.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withAlpha(30),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    entry.strongsNumber,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          // Meaning
+          Text(
+            isPT ? 'Significado' : 'Meaning',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            entry.meaning,
+            style: const TextStyle(
+                fontSize: 14, color: AppColors.textPrimary, height: 1.5),
+          ),
+          if (entry.insight.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              isPT ? 'Perspectiva Teológica' : 'Theological Insight',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              entry.insight,
+              style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                  height: 1.5,
+                  fontStyle: FontStyle.italic),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -582,6 +1271,367 @@ class _HistoricalContextBottomSheetState
     );
   }
 }
+
+// ─── Bible Chat ──────────────────────────────────────────────────────────────
+
+class _ChatMessage {
+  final String role; // 'user' or 'assistant'
+  final String content;
+  const _ChatMessage({required this.role, required this.content});
+}
+
+class _BibleChatBottomSheet extends ConsumerStatefulWidget {
+  final String book;
+  final int chapter;
+  final String language;
+  final bool isPremium;
+
+  const _BibleChatBottomSheet({
+    required this.book,
+    required this.chapter,
+    required this.language,
+    required this.isPremium,
+  });
+
+  @override
+  ConsumerState<_BibleChatBottomSheet> createState() =>
+      _BibleChatBottomSheetState();
+}
+
+class _BibleChatBottomSheetState
+    extends ConsumerState<_BibleChatBottomSheet> {
+  final _ctrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  final List<_ChatMessage> _messages = [];
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _sending) return;
+
+    final isPT = widget.language == 'pt';
+    _ctrl.clear();
+    setState(() {
+      _messages.add(_ChatMessage(role: 'user', content: text));
+      _sending = true;
+    });
+    _scrollToBottom();
+
+    try {
+      final hasKey = await OpenAIService.instance.hasApiKey();
+      if (!hasKey) {
+        if (!mounted) return;
+        setState(() {
+          _messages.add(_ChatMessage(
+            role: 'assistant',
+            content: isPT
+                ? 'Chave OpenAI não configurada. Vai a Definições e adiciona a tua chave API.'
+                : 'OpenAI key not configured. Go to Settings and add your API key.',
+          ));
+          _sending = false;
+        });
+        return;
+      }
+
+      // Build history for OpenAI (exclude latest user message — it's sent as `question`)
+      final history = _messages
+          .take(_messages.length - 1)
+          .map((m) => {'role': m.role, 'content': m.content})
+          .toList();
+
+      final raw = await OpenAIService.instance.chatBibleQuestion(
+        question: text,
+        book: widget.book,
+        chapter: widget.chapter,
+        history: history,
+        language: widget.language,
+        isPremium: widget.isPremium,
+      );
+
+      if (!mounted) return;
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      final answer = json['answer']?.toString() ?? '';
+      final refs = (json['relatedVerses'] as List<dynamic>? ?? [])
+          .map((r) => r.toString())
+          .where((r) => r.isNotEmpty)
+          .toList();
+
+      final fullAnswer = refs.isEmpty
+          ? answer
+          : '$answer\n\n📖 ${refs.join(' · ')}';
+
+      setState(() {
+        _messages.add(_ChatMessage(role: 'assistant', content: fullAnswer));
+        _sending = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(_ChatMessage(
+          role: 'assistant',
+          content: e.toString().replaceFirst('Exception: ', ''),
+        ));
+        _sending = false;
+      });
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPT = widget.language == 'pt';
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      maxChildSize: 0.95,
+      minChildSize: 0.5,
+      builder: (ctx, _) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.chat_rounded, color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isPT ? 'Tutor Bíblico' : 'Bible Tutor',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          '${widget.book} ${widget.chapter}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Messages
+            Expanded(
+              child: _messages.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.chat_bubble_outline_rounded,
+                                size: 48, color: AppColors.primary),
+                            const SizedBox(height: 16),
+                            Text(
+                              isPT
+                                  ? 'Faz uma pergunta sobre ${widget.book} ${widget.chapter}.\n\nPor exemplo:\n"O que significa este capítulo?"\n"Quem escreveu este livro?"\n"Por que Deus fez isso?"'
+                                  : 'Ask a question about ${widget.book} ${widget.chapter}.\n\nFor example:\n"What does this chapter mean?"\n"Who wrote this book?"\n"Why did God do this?"',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 14,
+                                height: 1.6,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollCtrl,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      itemCount: _messages.length,
+                      itemBuilder: (_, i) =>
+                          _ChatBubble(message: _messages[i]),
+                    ),
+            ),
+            // Typing indicator
+            if (_sending)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      '...',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            const Divider(height: 1),
+            // Input
+            SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 10,
+                  bottom: MediaQuery.of(context).viewInsets.bottom > 0
+                      ? 10
+                      : 16,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _ctrl,
+                        minLines: 1,
+                        maxLines: 4,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: InputDecoration(
+                          hintText: isPT
+                              ? 'Faz uma pergunta...'
+                              : 'Ask a question...',
+                          hintStyle: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 14),
+                          filled: true,
+                          fillColor: AppColors.surfaceLight,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onSubmitted: (_) => _send(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _send,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: const Icon(Icons.send_rounded,
+                            color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatBubble extends StatelessWidget {
+  final _ChatMessage message;
+
+  const _ChatBubble({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final isUser = message.role == 'user';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment:
+            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isUser) ...[
+            Container(
+              width: 28,
+              height: 28,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.auto_awesome,
+                  size: 14, color: Colors.white),
+            ),
+          ],
+          Flexible(
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isUser ? AppColors.primary : AppColors.surfaceLight,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: Radius.circular(isUser ? 18 : 4),
+                  bottomRight: Radius.circular(isUser ? 4 : 18),
+                ),
+              ),
+              child: Text(
+                message.content,
+                style: TextStyle(
+                  color: isUser ? Colors.white : AppColors.textPrimary,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Historical Context ───────────────────────────────────────────────────────
 
 class _ContextTile extends StatelessWidget {
   final IconData icon;

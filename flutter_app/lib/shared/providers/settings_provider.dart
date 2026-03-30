@@ -53,9 +53,13 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   Future<void> setLanguage(String language) async {
-    state = state.copyWith(language: language);
+    final translation = language == 'en'
+        ? AppConstants.translationKJV
+        : AppConstants.translationARC;
+    state = state.copyWith(language: language, translation: translation);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.selectedLanguageKey, language);
+    await prefs.setString(AppConstants.selectedTranslationKey, translation);
   }
 
   Future<void> setFontSize(double size) async {

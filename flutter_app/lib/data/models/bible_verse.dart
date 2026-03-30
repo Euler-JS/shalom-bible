@@ -44,6 +44,35 @@ class ScenarioPassage {
   });
 }
 
+class WordStudyEntry {
+  final String translatedWord;
+  final String originalWord;
+  final String transliteration;
+  final String strongsNumber;
+  final String meaning;
+  final String insight;
+
+  const WordStudyEntry({
+    required this.translatedWord,
+    required this.originalWord,
+    required this.transliteration,
+    required this.strongsNumber,
+    required this.meaning,
+    required this.insight,
+  });
+
+  factory WordStudyEntry.fromJson(Map<String, dynamic> map) {
+    return WordStudyEntry(
+      translatedWord: map['translatedWord']?.toString() ?? '',
+      originalWord: map['originalWord']?.toString() ?? '',
+      transliteration: map['transliteration']?.toString() ?? '',
+      strongsNumber: map['strongsNumber']?.toString() ?? '',
+      meaning: map['meaning']?.toString() ?? '',
+      insight: map['insight']?.toString() ?? '',
+    );
+  }
+}
+
 class StrongsEntry {
   final String number;
   final String originalWord;

@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'core/constants/app_constants.dart';
 import 'core/theme/app_theme.dart';
 import 'data/local/bible_database.dart';
+import 'data/remote/openai_service.dart';
 import 'features/scenario_search/scenario_search_screen.dart';
 import 'features/reading/reading_screen.dart';
 import 'features/sermon_generator/sermon_generator_screen.dart';
@@ -23,6 +25,14 @@ void main() async {
 
   // Initialize Bible database (copies SQLite assets on first run)
   await BibleDatabase.instance.init();
+
+  // Pre-load dev API key if set and not yet stored
+  if (AppConstants.openAiDevKey.isNotEmpty) {
+    final hasKey = await OpenAIService.instance.hasApiKey();
+    if (!hasKey) {
+      await OpenAIService.instance.saveApiKey(AppConstants.openAiDevKey);
+    }
+  }
 
   runApp(const ProviderScope(child: ShalomBibleApp()));
 }
