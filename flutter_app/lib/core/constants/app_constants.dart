@@ -1,6 +1,6 @@
 class AppConstants {
   // API
-  static const String backendBaseUrl = 'https://bd28-197-235-63-187.ngrok-free.app/api';
+  static const String backendBaseUrl = 'http://o8w0k4w04w80wc0cwwg8k0cw.194.163.145.253.sslip.io/api';
 
   // Secure storage keys
   static const String jwtTokenKey = 'shalom_jwt_token';
