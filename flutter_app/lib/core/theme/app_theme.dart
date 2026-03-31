@@ -64,13 +64,13 @@ class AppAdaptiveColors extends ThemeExtension<AppAdaptiveColors> {
 
   static const dark = AppAdaptiveColors(
     background: Color(0xFF0F0E1A),
-    surface: Color(0xFF1C1A2E),
-    cardBackground: Color(0xFF1C1A2E),
-    textPrimary: Color(0xFFF0EEFF),
-    textSecondary: Color(0xFF9996B5),
-    divider: Color(0xFF2C2A45),
-    cardBorder: Color(0xFF2C2A45),
-    inputFill: Color(0xFF1C1A2E),
+    surface: Color(0xFF151426),
+    cardBackground: Color(0xFF1B1931),
+    textPrimary: Color(0xFFF3F1FF),
+    textSecondary: Color(0xFFB0ACC9),
+    divider: Color(0xFF27263B),
+    cardBorder: Color(0xFF2F2C44),
+    inputFill: Color(0xFF1B1931),
   );
 
   @override
@@ -83,17 +83,16 @@ class AppAdaptiveColors extends ThemeExtension<AppAdaptiveColors> {
     Color? divider,
     Color? cardBorder,
     Color? inputFill,
-  }) =>
-      AppAdaptiveColors(
-        background: background ?? this.background,
-        surface: surface ?? this.surface,
-        cardBackground: cardBackground ?? this.cardBackground,
-        textPrimary: textPrimary ?? this.textPrimary,
-        textSecondary: textSecondary ?? this.textSecondary,
-        divider: divider ?? this.divider,
-        cardBorder: cardBorder ?? this.cardBorder,
-        inputFill: inputFill ?? this.inputFill,
-      );
+  }) => AppAdaptiveColors(
+    background: background ?? this.background,
+    surface: surface ?? this.surface,
+    cardBackground: cardBackground ?? this.cardBackground,
+    textPrimary: textPrimary ?? this.textPrimary,
+    textSecondary: textSecondary ?? this.textSecondary,
+    divider: divider ?? this.divider,
+    cardBorder: cardBorder ?? this.cardBorder,
+    inputFill: inputFill ?? this.inputFill,
+  );
 
   @override
   AppAdaptiveColors lerp(AppAdaptiveColors? other, double t) {
@@ -113,14 +112,14 @@ class AppAdaptiveColors extends ThemeExtension<AppAdaptiveColors> {
 
 // ─── Shortcut extension ───────────────────────────────────────────────────────
 extension AppThemeX on BuildContext {
-  AppAdaptiveColors get ac =>
-      Theme.of(this).extension<AppAdaptiveColors>()!;
+  AppAdaptiveColors get ac => Theme.of(this).extension<AppAdaptiveColors>()!;
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 }
 
 // ─── ThemeData ────────────────────────────────────────────────────────────────
 class AppTheme {
-  static ThemeData get light => _build(Brightness.light, AppAdaptiveColors.light);
+  static ThemeData get light =>
+      _build(Brightness.light, AppAdaptiveColors.light);
   static ThemeData get dark => _build(Brightness.dark, AppAdaptiveColors.dark);
 
   static ThemeData _build(Brightness brightness, AppAdaptiveColors ac) {
@@ -146,22 +145,43 @@ class AppTheme {
     return base.copyWith(
       textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
         displayLarge: GoogleFonts.merriweather(
-          fontSize: 28, fontWeight: FontWeight.bold, color: ac.textPrimary),
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: ac.textPrimary,
+        ),
         displayMedium: GoogleFonts.merriweather(
-          fontSize: 24, fontWeight: FontWeight.bold, color: ac.textPrimary),
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: ac.textPrimary,
+        ),
         headlineMedium: GoogleFonts.inter(
-          fontSize: 20, fontWeight: FontWeight.w600, color: ac.textPrimary),
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: ac.textPrimary,
+        ),
         titleLarge: GoogleFonts.inter(
-          fontSize: 18, fontWeight: FontWeight.w600, color: ac.textPrimary),
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: ac.textPrimary,
+        ),
         titleMedium: GoogleFonts.inter(
-          fontSize: 16, fontWeight: FontWeight.w500, color: ac.textPrimary),
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: ac.textPrimary,
+        ),
         bodyLarge: GoogleFonts.merriweather(
-          fontSize: 17, height: 1.8, color: ac.textPrimary),
+          fontSize: 17,
+          height: 1.8,
+          color: ac.textPrimary,
+        ),
         bodyMedium: GoogleFonts.inter(fontSize: 15, color: ac.textPrimary),
         bodySmall: GoogleFonts.inter(fontSize: 13, color: ac.textSecondary),
         labelLarge: GoogleFonts.inter(
-          fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5,
-          color: ac.textPrimary),
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+          color: ac.textPrimary,
+        ),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: ac.background,
@@ -169,7 +189,10 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
         titleTextStyle: GoogleFonts.inter(
-          fontSize: 18, fontWeight: FontWeight.w600, color: ac.textPrimary),
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: ac.textPrimary,
+        ),
         surfaceTintColor: Colors.transparent,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -178,8 +201,13 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -187,14 +215,22 @@ class AppTheme {
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary, width: 1.5),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: ac.inputFill,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: ac.cardBorder),
@@ -218,8 +254,7 @@ class AppTheme {
         ),
         margin: EdgeInsets.zero,
       ),
-      dividerTheme: DividerThemeData(
-        color: ac.divider, thickness: 1, space: 0),
+      dividerTheme: DividerThemeData(color: ac.divider, thickness: 1, space: 0),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: ac.background,
         selectedItemColor: AppColors.primary,
@@ -231,19 +266,22 @@ class AppTheme {
         backgroundColor: ac.background,
         indicatorColor: AppColors.primary.withAlpha(isDark ? 40 : 20),
         surfaceTintColor: Colors.transparent,
-        labelTextStyle: WidgetStateProperty.resolveWith((states) =>
-            GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: states.contains(WidgetState.selected)
-                  ? AppColors.primary
-                  : ac.textSecondary,
-            )),
-        iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
-              color: states.contains(WidgetState.selected)
-                  ? AppColors.primary
-                  : ac.textSecondary,
-            )),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: states.contains(WidgetState.selected)
+                ? AppColors.primary
+                : ac.textSecondary,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? AppColors.primary
+                : ac.textSecondary,
+          ),
+        ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: ac.cardBackground,

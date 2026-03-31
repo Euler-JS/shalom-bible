@@ -59,13 +59,18 @@ class _SermonGeneratorScreenState extends ConsumerState<SermonGeneratorScreen> {
         isPremium: auth.user?.isPremium ?? false,
       );
 
-      // Try to extract title and passage from the raw JSON
-      // The generateSermonOutline already parsed content but we need title/passage separately
-      // Re-generate with JSON to get title/passage
       setState(() {
         _content = content;
-        _generatedTitle = 'Esboço de Sermão';
-        _generatedPassage = '';
+        final fallbackTitle = _controller.text.trim().isNotEmpty
+            ? _controller.text.trim()
+            : (settings.language == 'pt'
+                  ? 'Esboço de Sermão'
+                  : 'Sermon Outline');
+
+        _generatedTitle = content.title.isNotEmpty
+            ? content.title
+            : fallbackTitle;
+        _generatedPassage = content.basePassage;
         _isLoading = false;
       });
     } catch (e) {

@@ -13,7 +13,8 @@ class SermonPoint {
     return SermonPoint(
       title: json['title']?.toString() ?? '',
       development: json['development']?.toString() ?? '',
-      supportingVerses: (json['supportingVerses'] as List<dynamic>?)
+      supportingVerses:
+          (json['supportingVerses'] as List<dynamic>?)
               ?.map((v) => v.toString())
               .toList() ??
           [],
@@ -21,10 +22,10 @@ class SermonPoint {
   }
 
   Map<String, dynamic> toJson() => {
-        'title': title,
-        'development': development,
-        'supportingVerses': supportingVerses,
-      };
+    'title': title,
+    'development': development,
+    'supportingVerses': supportingVerses,
+  };
 }
 
 class SermonContent {
@@ -33,6 +34,8 @@ class SermonContent {
   final List<String> illustrations;
   final String conclusion;
   final String closingPrayer;
+  final String title;
+  final String basePassage;
 
   const SermonContent({
     required this.introduction,
@@ -40,31 +43,39 @@ class SermonContent {
     required this.illustrations,
     required this.conclusion,
     required this.closingPrayer,
+    this.title = '',
+    this.basePassage = '',
   });
 
   factory SermonContent.fromJson(Map<String, dynamic> json) {
     return SermonContent(
       introduction: json['introduction']?.toString() ?? '',
-      points: (json['points'] as List<dynamic>?)
+      points:
+          (json['points'] as List<dynamic>?)
               ?.map((p) => SermonPoint.fromJson(p as Map<String, dynamic>))
               .toList() ??
           [],
-      illustrations: (json['illustrations'] as List<dynamic>?)
+      illustrations:
+          (json['illustrations'] as List<dynamic>?)
               ?.map((i) => i.toString())
               .toList() ??
           [],
       conclusion: json['conclusion']?.toString() ?? '',
       closingPrayer: json['closingPrayer']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      basePassage: json['basePassage']?.toString() ?? '',
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'introduction': introduction,
-        'points': points.map((p) => p.toJson()).toList(),
-        'illustrations': illustrations,
-        'conclusion': conclusion,
-        'closingPrayer': closingPrayer,
-      };
+    'introduction': introduction,
+    'points': points.map((p) => p.toJson()).toList(),
+    'illustrations': illustrations,
+    'conclusion': conclusion,
+    'closingPrayer': closingPrayer,
+    'title': title,
+    'basePassage': basePassage,
+  };
 
   String toPlainText(String title, String basePassage) {
     final buf = StringBuffer();
@@ -120,7 +131,8 @@ class SermonModel {
       language: json['language']?.toString() ?? 'pt',
       inputPrompt: json['inputPrompt']?.toString() ?? '',
       content: SermonContent.fromJson(
-          json['content'] as Map<String, dynamic>? ?? {}),
+        json['content'] as Map<String, dynamic>? ?? {},
+      ),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
@@ -128,12 +140,12 @@ class SermonModel {
   }
 
   Map<String, dynamic> toJson() => {
-        if (id != null) '_id': id,
-        'title': title,
-        'basePassage': basePassage,
-        'language': language,
-        'inputPrompt': inputPrompt,
-        'content': content.toJson(),
-        if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
-      };
+    if (id != null) '_id': id,
+    'title': title,
+    'basePassage': basePassage,
+    'language': language,
+    'inputPrompt': inputPrompt,
+    'content': content.toJson(),
+    if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+  };
 }

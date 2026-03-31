@@ -353,9 +353,9 @@ class _SermonCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.ac.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.ac.cardBorder),
       ),
       child: InkWell(
         onTap: onTap,
@@ -448,13 +448,14 @@ class _SermonDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = context.ac;
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
       maxChildSize: 0.95,
       builder: (ctx, scroll) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: ac.cardBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           children: [

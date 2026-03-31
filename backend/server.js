@@ -10,6 +10,8 @@ const app = express();
 connectDB();
 
 // Middleware
+// Behind a reverse proxy (Coolify), we need to trust proxy to read X-Forwarded-For correctly
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
