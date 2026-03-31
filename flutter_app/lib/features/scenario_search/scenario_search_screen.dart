@@ -3,14 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/bible_verse.dart';
-import '../../data/remote/openai_service.dart';
 import '../../data/local/bible_database.dart';
+import '../../data/remote/openai_service.dart';
 import '../../shared/providers/auth_provider.dart';
 import '../../shared/providers/settings_provider.dart';
 import '../../shared/widgets/app_button.dart';
 import '../../shared/widgets/loading_overlay.dart';
 import '../../shared/widgets/verse_card.dart';
-import '../../data/remote/api_client.dart';
 
 class ScenarioSearchScreen extends ConsumerStatefulWidget {
   const ScenarioSearchScreen({super.key});
@@ -20,8 +19,7 @@ class ScenarioSearchScreen extends ConsumerStatefulWidget {
       _ScenarioSearchScreenState();
 }
 
-class _ScenarioSearchScreenState
-    extends ConsumerState<ScenarioSearchScreen> {
+class _ScenarioSearchScreenState extends ConsumerState<ScenarioSearchScreen> {
   final _controller = TextEditingController();
   List<ScenarioPassage> _passages = [];
   bool _isLoading = false;
@@ -40,18 +38,6 @@ class _ScenarioSearchScreenState
 
     final auth = ref.read(authProvider);
     final settings = ref.read(settingsProvider);
-
-    // Check if logged in for usage tracking
-    if (auth.isLoggedIn) {
-      final allowed = await ApiClient.instance.incrementUsage('scenarioSearch');
-      if (!allowed) {
-        setState(() => _error =
-            settings.language == 'pt'
-                ? 'Limite semanal atingido (3 buscas). Actualiza para Premium.'
-                : 'Weekly limit reached (3 searches). Upgrade to Premium.');
-        return;
-      }
-    }
 
     setState(() {
       _isLoading = true;
@@ -74,11 +60,13 @@ class _ScenarioSearchScreenState
           translation: settings.translation,
           reference: p.reference,
         );
-        enriched.add(ScenarioPassage(
-          reference: p.reference,
-          explanation: p.explanation,
-          verseData: verse,
-        ));
+        enriched.add(
+          ScenarioPassage(
+            reference: p.reference,
+            explanation: p.explanation,
+            verseData: verse,
+          ),
+        );
       }
 
       setState(() {
@@ -88,9 +76,8 @@ class _ScenarioSearchScreenState
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _error = e.toString().contains('OpenAI API key not configured')
-            ? 'Chave da API OpenAI não configurada. Vai às Definições.'
-            : 'Erro ao buscar passagens. Verifica a tua ligação à internet.';
+        _error =
+            'Erro ao buscar passagens. Verifica a tua ligação ou o backend.';
       });
     }
   }
@@ -109,154 +96,168 @@ class _ScenarioSearchScreenState
         child: SafeArea(
           bottom: false,
           child: Column(
-          children: [
-            // Header — full when empty, compact when results exist
-            if (_passages.isEmpty && !_isLoading) ...[
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            borderRadius: BorderRadius.circular(10),
+            children: [
+              // Header — full when empty, compact when results exist
+              if (_passages.isEmpty && !_isLoading) ...[
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: AppColors.primaryGradient,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.search_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
-                          child: const Icon(Icons.search_rounded,
-                              color: Colors.white, size: 20),
+                          const SizedBox(width: 12),
+                          Text(
+                            isPT ? 'Busca por Cenário' : 'Scenario Search',
+                            style: theme.textTheme.headlineMedium,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        isPT
+                            ? 'Descreve a tua situação e a IA encontra versículos relevantes'
+                            : 'Describe your situation and AI finds relevant verses',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _controller,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          hintText: isPT
+                              ? 'Descreve a tua situação ou o que estás a sentir...'
+                              : 'Describe your situation or what you are feeling...',
+                          hintMaxLines: 3,
                         ),
-                        const SizedBox(width: 12),
-                        Text(
-                          isPT ? 'Busca por Cenário' : 'Scenario Search',
-                          style: theme.textTheme.headlineMedium,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      isPT
-                          ? 'Descreve a tua situação e a IA encontra versículos relevantes'
-                          : 'Describe your situation and AI finds relevant verses',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _controller,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: isPT
-                            ? 'Descreve a tua situação ou o que estás a sentir...'
-                            : 'Describe your situation or what you are feeling...',
-                        hintMaxLines: 3,
+                        textCapitalization: TextCapitalization.sentences,
                       ),
-                      textCapitalization: TextCapitalization.sentences,
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: AppButton(
-                        label: isPT ? 'Encontrar Passagens' : 'Find Passages',
-                        icon: Icons.auto_awesome,
-                        onPressed: _isLoading ? null : _search,
-                        isLoading: _isLoading,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      isPT
-                          ? '3 buscas por semana no plano gratuito'
-                          : '3 searches per week on the free plan',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: context.ac.textSecondary),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ] else ...[
-              // Compact bar — shows query + edit button
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: context.ac.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: context.ac.cardBorder),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.search_rounded,
-                          color: Colors.white, size: 14),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _submittedQuery,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: context.ac.textPrimary,
-                          fontWeight: FontWeight.w500,
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: AppButton(
+                          label: isPT ? 'Encontrar Passagens' : 'Find Passages',
+                          icon: Icons.auto_awesome,
+                          onPressed: _isLoading ? null : _search,
+                          isLoading: _isLoading,
                         ),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () => setState(() {
-                        _passages = [];
-                        _error = null;
-                      }),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      const SizedBox(height: 8),
+                      Text(
+                        isPT
+                            ? '3 buscas por semana no plano gratuito'
+                            : '3 searches per week on the free plan',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: context.ac.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      child: Text(
-                        isPT ? 'Editar' : 'Edit',
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-            ],
+              ] else ...[
+                // Compact bar — shows query + edit button
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: context.ac.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: context.ac.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.search_rounded,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _submittedQuery,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: context.ac.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() {
+                          _passages = [];
+                          _error = null;
+                        }),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          isPT ? 'Editar' : 'Edit',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
 
-            // Results
-            Expanded(
-              child: _isLoading
-                  ? AILoadingWidget(
-                      message: isPT
-                          ? 'A IA está a buscar versículos...'
-                          : 'AI is searching for verses...',
-                    )
-                  : _error != null
-                      ? _buildError()
-                      : _passages.isEmpty
-                          ? _buildEmptyState(isPT)
-                          : _buildResults(),
-            ),
-          ],
+              // Results
+              Expanded(
+                child: _isLoading
+                    ? AILoadingWidget(
+                        message: isPT
+                            ? 'A IA está a buscar versículos...'
+                            : 'AI is searching for verses...',
+                      )
+                    : _error != null
+                    ? _buildError()
+                    : _passages.isEmpty
+                    ? _buildEmptyState(isPT)
+                    : _buildResults(),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -268,15 +269,14 @@ class _ScenarioSearchScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline,
-                color: AppColors.error, size: 48),
+            const Icon(Icons.error_outline, color: AppColors.error, size: 48),
             const SizedBox(height: 16),
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.ac.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: context.ac.textSecondary),
             ),
           ],
         ),
@@ -291,8 +291,11 @@ class _ScenarioSearchScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.menu_book_outlined,
-                size: 64, color: AppColors.primary.withAlpha(80)),
+            Icon(
+              Icons.menu_book_outlined,
+              size: 64,
+              color: AppColors.primary.withAlpha(80),
+            ),
             const SizedBox(height: 16),
             Text(
               isPT
@@ -300,9 +303,9 @@ class _ScenarioSearchScreenState
                   : 'Write what you\'re feeling\nand AI will find the right verses',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.ac.textSecondary,
-                    height: 1.6,
-                  ),
+                color: context.ac.textSecondary,
+                height: 1.6,
+              ),
             ),
           ],
         ),
@@ -372,9 +375,18 @@ class _HistoricalContextSheetState
         isPremium: auth.user?.isPremium ?? false,
       );
 
-      if (mounted) setState(() { _context = result; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _context = result;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { _loading = false; });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -385,7 +397,9 @@ class _HistoricalContextSheetState
       maxChildSize: 0.95,
       builder: (ctx, scroll) => Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
+          color: Theme.of(
+            context,
+          ).extension<AppAdaptiveColors>()!.cardBackground,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -408,14 +422,18 @@ class _HistoricalContextSheetState
             ),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    )
                   : _context == null
-                      ? const Center(child: Text('Erro ao carregar contexto.'))
-                      : SingleChildScrollView(
-                          controller: scroll,
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                          child: _ContextContent(raw: _context!),
-                        ),
+                  ? const Center(child: Text('Erro ao carregar contexto.'))
+                  : SingleChildScrollView(
+                      controller: scroll,
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                      child: _ContextContent(raw: _context!),
+                    ),
             ),
           ],
         ),
@@ -440,17 +458,41 @@ class _ContextContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (json['timePeriod'] != null)
-            _ContextItem(icon: Icons.schedule, label: 'Período', text: json['timePeriod'].toString()),
+            _ContextItem(
+              icon: Icons.schedule,
+              label: 'Período',
+              text: json['timePeriod'].toString(),
+            ),
           if (json['author'] != null)
-            _ContextItem(icon: Icons.person, label: 'Autor', text: json['author'].toString()),
+            _ContextItem(
+              icon: Icons.person,
+              label: 'Autor',
+              text: json['author'].toString(),
+            ),
           if (json['audience'] != null)
-            _ContextItem(icon: Icons.groups, label: 'Destinatários', text: json['audience'].toString()),
+            _ContextItem(
+              icon: Icons.groups,
+              label: 'Destinatários',
+              text: json['audience'].toString(),
+            ),
           if (json['geographicContext'] != null)
-            _ContextItem(icon: Icons.location_on, label: 'Contexto Geográfico', text: json['geographicContext'].toString()),
+            _ContextItem(
+              icon: Icons.location_on,
+              label: 'Contexto Geográfico',
+              text: json['geographicContext'].toString(),
+            ),
           if (json['purpose'] != null)
-            _ContextItem(icon: Icons.lightbulb_outline, label: 'Propósito', text: json['purpose'].toString()),
+            _ContextItem(
+              icon: Icons.lightbulb_outline,
+              label: 'Propósito',
+              text: json['purpose'].toString(),
+            ),
           if (json['summary'] != null)
-            _ContextItem(icon: Icons.summarize, label: 'Resumo', text: json['summary'].toString()),
+            _ContextItem(
+              icon: Icons.summarize,
+              label: 'Resumo',
+              text: json['summary'].toString(),
+            ),
         ],
       );
     } catch (_) {
@@ -509,9 +551,9 @@ class _ContextItem extends StatelessWidget {
             Text(
               text,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.ac.textPrimary,
-                    height: 1.6,
-                  ),
+                color: context.ac.textPrimary,
+                height: 1.6,
+              ),
             ),
           ],
         ),

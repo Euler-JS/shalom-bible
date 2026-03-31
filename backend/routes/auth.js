@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Sermon = require('../models/Sermon');
+const AiUsage = require('../models/AiUsage');
 const { protect } = require('../middleware/authMiddleware');
 
 const signToken = (userId) =>
@@ -104,6 +106,26 @@ router.patch('/language', protect, async (req, res) => {
     req.user.language = language;
     await req.user.save();
     res.json({ user: req.user.toPublicProfile() });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.', error: err.message });
+  }
+});
+
+// DELETE /api/auth/me — delete current user account and owned data
+router.delete('/me', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    await Promise.all([
+      Sermon.deleteMany({ userId }),
+      AiUsage.deleteMany({
+        subjectType: 'user',
+        subjectId: userId.toString(),
+      }),
+      User.deleteOne({ _id: userId }),
+    ]);
+
+    res.json({ message: 'Account deleted successfully.' });
   } catch (err) {
     res.status(500).json({ message: 'Server error.', error: err.message });
   }

@@ -1,32 +1,40 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import '../../core/constants/app_constants.dart';
 
 class ApiClient {
   static ApiClient? _instance;
   late final Dio _dio;
   final _storage = const FlutterSecureStorage();
+  static const _uuid = Uuid();
 
   ApiClient._() {
-    _dio = Dio(BaseOptions(
-      baseUrl: AppConstants.backendBaseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: {'Content-Type': 'application/json'},
-    ));
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: AppConstants.backendBaseUrl,
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {'Content-Type': 'application/json'},
+      ),
+    );
 
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await _storage.read(key: AppConstants.jwtTokenKey);
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        handler.next(options);
-      },
-      onError: (error, handler) {
-        handler.next(error);
-      },
-    ));
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await _storage.read(key: AppConstants.jwtTokenKey);
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          options.headers['X-Device-Id'] = await getOrCreateDeviceId();
+          handler.next(options);
+        },
+        onError: (error, handler) {
+          handler.next(error);
+        },
+      ),
+    );
   }
 
   static ApiClient get instance {
@@ -36,6 +44,18 @@ class ApiClient {
 
   Dio get dio => _dio;
 
+  Future<String> getOrCreateDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString(AppConstants.deviceIdKey);
+    if (existing != null && existing.isNotEmpty) {
+      return existing;
+    }
+
+    final deviceId = _uuid.v4();
+    await prefs.setString(AppConstants.deviceIdKey, deviceId);
+    return deviceId;
+  }
+
   // Auth
   Future<Map<String, dynamic>> register({
     required String email,
@@ -43,12 +63,15 @@ class ApiClient {
     String? name,
     String language = 'pt',
   }) async {
-    final res = await _dio.post('/auth/register', data: {
-      'email': email,
-      'password': password,
-      'name': name ?? '',
-      'language': language,
-    });
+    final res = await _dio.post(
+      '/auth/register',
+      data: {
+        'email': email,
+        'password': password,
+        'name': name ?? '',
+        'language': language,
+      },
+    );
     return res.data as Map<String, dynamic>;
   }
 
@@ -56,10 +79,10 @@ class ApiClient {
     required String email,
     required String password,
   }) async {
-    final res = await _dio.post('/auth/login', data: {
-      'email': email,
-      'password': password,
-    });
+    final res = await _dio.post(
+      '/auth/login',
+      data: {'email': email, 'password': password},
+    );
     return res.data as Map<String, dynamic>;
   }
 
@@ -68,31 +91,19 @@ class ApiClient {
     return res.data as Map<String, dynamic>;
   }
 
-  // Usage
-  Future<bool> incrementUsage(String feature) async {
-    try {
-      await _dio.post('/usage/increment', data: {'feature': feature});
-      return true;
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 403) return false;
-      rethrow;
-    }
-  }
-
-  Future<Map<String, dynamic>> getUsage() async {
-    final res = await _dio.get('/usage');
-    return res.data as Map<String, dynamic>;
+  Future<void> deleteAccount() async {
+    await _dio.delete('/auth/me');
   }
 
   // Sermons
-  Future<Map<String, dynamic>> getSermons({
-    String? query,
-    int page = 1,
-  }) async {
-    final res = await _dio.get('/sermons', queryParameters: {
-      if (query != null && query.isNotEmpty) 'q': query,
-      'page': page,
-    });
+  Future<Map<String, dynamic>> getSermons({String? query, int page = 1}) async {
+    final res = await _dio.get(
+      '/sermons',
+      queryParameters: {
+        if (query != null && query.isNotEmpty) 'q': query,
+        'page': page,
+      },
+    );
     return res.data as Map<String, dynamic>;
   }
 

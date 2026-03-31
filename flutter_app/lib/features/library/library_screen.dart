@@ -5,6 +5,7 @@ import '../../core/utils/date_formatter.dart';
 import '../../data/models/sermon_model.dart';
 import '../../data/remote/api_client.dart';
 import '../../shared/providers/auth_provider.dart';
+import '../../shared/providers/library_provider.dart';
 import '../../shared/providers/settings_provider.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -64,15 +65,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Sermão'),
-        content: Text('Eliminar "${sermon.title}"? Esta acção não pode ser desfeita.'),
+        content: Text(
+          'Eliminar "${sermon.title}"? Esta acção não pode ser desfeita.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar',
-                style: TextStyle(color: AppColors.error)),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -83,16 +89,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         await ApiClient.instance.deleteSermon(sermon.id!);
         setState(() => _sermons.removeWhere((s) => s.id == sermon.id));
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Sermão eliminado.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Sermão eliminado.')));
         }
       } catch (_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Erro ao eliminar.'),
-                backgroundColor: AppColors.error),
+              content: Text('Erro ao eliminar.'),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       }
@@ -105,6 +112,26 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final settings = ref.watch(settingsProvider);
     final isPT = settings.language == 'pt';
     final theme = Theme.of(context);
+
+    ref.listen<int>(libraryRefreshProvider, (prev, next) {
+      if (prev != next && auth.isLoggedIn) {
+        _load(query: _searchQuery.isNotEmpty ? _searchQuery : null);
+      }
+    });
+
+    ref.listen<AuthState>(authProvider, (prev, next) {
+      if (prev?.isLoggedIn != next.isLoggedIn) {
+        if (next.isLoggedIn) {
+          _load(query: _searchQuery.isNotEmpty ? _searchQuery : null);
+        } else {
+          setState(() {
+            _sermons = [];
+            _loading = false;
+            _error = null;
+          });
+        }
+      }
+    });
 
     if (!auth.isLoggedIn) {
       return Scaffold(
@@ -122,8 +149,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       gradient: AppColors.primaryGradient,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.library_books_rounded,
-                        color: Colors.white, size: 40),
+                    child: const Icon(
+                      Icons.library_books_rounded,
+                      color: Colors.white,
+                      size: 40,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -138,14 +168,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         : 'Create an account to save and access\nyour sermon outlines.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary, height: 1.6),
+                      color: AppColors.textSecondary,
+                      height: 1.6,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: () {
                       // Navigate to auth screen
                     },
-                    child: Text(isPT ? 'Entrar / Criar Conta' : 'Sign In / Create Account'),
+                    child: Text(
+                      isPT
+                          ? 'Entrar / Criar Conta'
+                          : 'Sign In / Create Account',
+                    ),
                   ),
                 ],
               ),
@@ -171,8 +207,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       gradient: AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.library_books_rounded,
-                        color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.library_books_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -198,11 +237,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   _load(query: val.isNotEmpty ? val : null);
                 },
                 decoration: InputDecoration(
-                  hintText: isPT
-                      ? 'Pesquisar sermões...'
-                      : 'Search sermons...',
-                  prefixIcon: const Icon(Icons.search_rounded,
-                      color: AppColors.textSecondary),
+                  hintText: isPT ? 'Pesquisar sermões...' : 'Search sermons...',
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear_rounded),
@@ -221,31 +260,31 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             Expanded(
               child: _loading
                   ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary))
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    )
                   : _error != null
-                      ? Center(child: Text(_error!))
-                      : _sermons.isEmpty
-                          ? _buildEmptyState(isPT)
-                          : RefreshIndicator(
-                              onRefresh: () => _load(
-                                  query: _searchQuery.isNotEmpty
-                                      ? _searchQuery
-                                      : null),
-                              child: ListView.builder(
-                                padding: const EdgeInsets.fromLTRB(
-                                    20, 0, 20, 100),
-                                itemCount: _sermons.length,
-                                itemBuilder: (context, index) {
-                                  return _SermonCard(
-                                    sermon: _sermons[index],
-                                    isPT: isPT,
-                                    onTap: () =>
-                                        _openSermon(_sermons[index]),
-                                    onDelete: () => _delete(_sermons[index]),
-                                  );
-                                },
-                              ),
-                            ),
+                  ? Center(child: Text(_error!))
+                  : _sermons.isEmpty
+                  ? _buildEmptyState(isPT)
+                  : RefreshIndicator(
+                      onRefresh: () => _load(
+                        query: _searchQuery.isNotEmpty ? _searchQuery : null,
+                      ),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                        itemCount: _sermons.length,
+                        itemBuilder: (context, index) {
+                          return _SermonCard(
+                            sermon: _sermons[index],
+                            isPT: isPT,
+                            onTap: () => _openSermon(_sermons[index]),
+                            onDelete: () => _delete(_sermons[index]),
+                          );
+                        },
+                      ),
+                    ),
             ),
           ],
         ),
@@ -260,22 +299,25 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.library_books_outlined,
-                size: 64, color: AppColors.primary.withAlpha(80)),
+            Icon(
+              Icons.library_books_outlined,
+              size: 64,
+              color: AppColors.primary.withAlpha(80),
+            ),
             const SizedBox(height: 16),
             Text(
               _searchQuery.isNotEmpty
                   ? (isPT
-                      ? 'Nenhum sermão encontrado para "$_searchQuery"'
-                      : 'No sermons found for "$_searchQuery"')
+                        ? 'Nenhum sermão encontrado para "$_searchQuery"'
+                        : 'No sermons found for "$_searchQuery"')
                   : (isPT
-                      ? 'A tua biblioteca está vazia.\nGera o teu primeiro esboço!'
-                      : 'Your library is empty.\nGenerate your first outline!'),
+                        ? 'A tua biblioteca está vazia.\nGera o teu primeiro esboço!'
+                        : 'Your library is empty.\nGenerate your first outline!'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.6,
-                  ),
+                color: AppColors.textSecondary,
+                height: 1.6,
+              ),
             ),
           ],
         ),
@@ -328,8 +370,11 @@ class _SermonCard extends StatelessWidget {
                   gradient: AppColors.primaryGradient,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.auto_stories_rounded,
-                    color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.auto_stories_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -364,8 +409,10 @@ class _SermonCard extends StatelessWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded,
-                    color: AppColors.textSecondary),
+                icon: const Icon(
+                  Icons.more_vert_rounded,
+                  color: AppColors.textSecondary,
+                ),
                 onSelected: (val) {
                   if (val == 'delete') onDelete();
                 },
@@ -374,8 +421,11 @@ class _SermonCard extends StatelessWidget {
                     value: 'delete',
                     child: Row(
                       children: [
-                        const Icon(Icons.delete_outline_rounded,
-                            color: AppColors.error, size: 18),
+                        const Icon(
+                          Icons.delete_outline_rounded,
+                          color: AppColors.error,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Text(isPT ? 'Eliminar' : 'Delete'),
                       ],
@@ -413,23 +463,27 @@ class _SermonDetailSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(2)),
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(sermon.title,
-                      style: Theme.of(context).textTheme.headlineMedium),
+                  Text(
+                    sermon.title,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
                   if (sermon.basePassage.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       sermon.basePassage,
                       style: const TextStyle(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.w500),
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ],
@@ -443,35 +497,50 @@ class _SermonDetailSheet extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _DetailSection(title: 'Introdução', content: sermon.content.introduction),
-                    ...sermon.content.points.asMap().entries.map((e) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Ponto ${e.key + 1}: ${e.value.title}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                    fontSize: 15)),
-                            const SizedBox(height: 6),
-                            Text(e.value.development,
-                                style: const TextStyle(height: 1.6)),
-                            if (e.value.supportingVerses.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                  e.value.supportingVerses.join(' • '),
-                                  style: const TextStyle(
-                                      color: AppColors.secondary,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500)),
-                            ],
-                            const SizedBox(height: 16),
+                    _DetailSection(
+                      title: 'Introdução',
+                      content: sermon.content.introduction,
+                    ),
+                    ...sermon.content.points.asMap().entries.map(
+                      (e) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ponto ${e.key + 1}: ${e.value.title}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            e.value.development,
+                            style: const TextStyle(height: 1.6),
+                          ),
+                          if (e.value.supportingVerses.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              e.value.supportingVerses.join(' • '),
+                              style: const TextStyle(
+                                color: AppColors.secondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ],
-                        )),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
                     _DetailSection(
-                        title: 'Conclusão', content: sermon.content.conclusion),
+                      title: 'Conclusão',
+                      content: sermon.content.conclusion,
+                    ),
                     _DetailSection(
-                        title: 'Oração de Encerramento',
-                        content: sermon.content.closingPrayer),
+                      title: 'Oração de Encerramento',
+                      content: sermon.content.closingPrayer,
+                    ),
                   ],
                 ),
               ),
@@ -495,11 +564,14 @@ class _DetailSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title,
-            style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-                fontSize: 15)),
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+            fontSize: 15,
+          ),
+        ),
         const SizedBox(height: 6),
         Text(content, style: const TextStyle(height: 1.6)),
         const SizedBox(height: 16),

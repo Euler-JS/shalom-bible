@@ -44,7 +44,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (userJson != null) {
       try {
         final user = UserModel.fromJson(
-            jsonDecode(userJson) as Map<String, dynamic>);
+          jsonDecode(userJson) as Map<String, dynamic>,
+        );
         state = state.copyWith(user: user);
       } catch (_) {}
     }
@@ -86,18 +87,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: _parseError(e),
-      );
+      state = state.copyWith(isLoading: false, error: _parseError(e));
       return false;
     }
   }
 
-  Future<bool> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<bool> login({required String email, required String password}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final data = await ApiClient.instance.login(
@@ -111,10 +106,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: _parseError(e),
-      );
+      state = state.copyWith(isLoading: false, error: _parseError(e));
       return false;
     }
   }
@@ -125,6 +117,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState();
   }
 
+  Future<bool> deleteAccount() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await ApiClient.instance.deleteAccount();
+      await ApiClient.instance.clearToken();
+      await _storage.delete(key: AppConstants.userDataKey);
+      state = const AuthState();
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _parseError(e));
+      return false;
+    }
+  }
+
   void clearError() => state = state.copyWith(clearError: true);
 
   String _parseError(dynamic e) {
@@ -132,6 +138,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final msg = e.toString();
       if (msg.contains('409')) return 'Este email já está registado.';
       if (msg.contains('401')) return 'Email ou senha incorrectos.';
+      if (msg.contains('delete')) return 'Não foi possível eliminar a conta.';
       if (msg.contains('network') || msg.contains('connection')) {
         return 'Sem ligação à internet.';
       }

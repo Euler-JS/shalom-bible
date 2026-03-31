@@ -1,29 +1,11 @@
 class AppConstants {
   // API
-  static const String backendBaseUrl = 'http://localhost:3000/api';
-  static const String geminiBaseUrl =
-      'https://generativelanguage.googleapis.com/v1beta';
-  static const String openAiBaseUrl = 'https://api.openai.com/v1';
-
-  // AI models
-  static const String geminiModelFree = 'gemini-2.5-flash';
-  static const String geminiModelPremium = 'gemini-2.5-pro';
-  static const String openAiModelFree = 'gpt-4.1-mini';
-  static const String openAiModelPremium = 'gpt-4.1';
+  static const String backendBaseUrl = 'https://bd28-197-235-63-187.ngrok-free.app/api';
 
   // Secure storage keys
   static const String jwtTokenKey = 'shalom_jwt_token';
   static const String userDataKey = 'shalom_user_data';
-  static const String geminiKeyStorage = 'shalom_gemini_key';
-  static const String openAiKeyStorage = 'shalom_openai_key';
-
-  // App-level AI API keys.
-  // Gemini is the primary provider and OpenAI is used as fallback.
-  // Replace these values with your own keys before building.
-  static const String geminiDevKey = 
-  'AIzaSyCnwlVDoL4g4kajUGOYKe4VP3lvNyI4ESA';
-  static const String openAiDevKey =
-      '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';
+  static const String deviceIdKey = 'shalom_device_id';
 
   // SharedPreferences keys
   static const String selectedTranslationKey = 'selected_translation';

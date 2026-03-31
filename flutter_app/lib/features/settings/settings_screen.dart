@@ -14,6 +14,64 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  Future<void> _confirmDeleteAccount(bool isPT) async {
+    final auth = ref.read(authProvider);
+    if (!auth.isLoggedIn) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isPT ? 'Eliminar conta' : 'Delete account'),
+        content: Text(
+          isPT
+              ? 'Esta ação elimina permanentemente a tua conta e os teus sermões guardados. Esta ação não pode ser desfeita.'
+              : 'This permanently deletes your account and your saved sermons. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(isPT ? 'Cancelar' : 'Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isPT ? 'Eliminar' : 'Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    final success = await ref.read(authProvider.notifier).deleteAccount();
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? (isPT
+                    ? 'Conta eliminada com sucesso.'
+                    : 'Account deleted successfully.')
+              : (ref.read(authProvider).error ??
+                    (isPT
+                        ? 'Não foi possível eliminar a conta.'
+                        : 'Could not delete account.')),
+        ),
+        backgroundColor: success ? AppColors.success : AppColors.error,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
@@ -63,6 +121,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: Icons.logout_rounded,
               title: isPT ? 'Terminar Sessão' : 'Sign Out',
               onTap: () => ref.read(authProvider.notifier).logout(),
+              titleColor: AppColors.error,
+            ),
+            const SizedBox(height: 8),
+            _SettingsTile(
+              icon: Icons.delete_forever_rounded,
+              title: isPT ? 'Eliminar Conta' : 'Delete Account',
+              subtitle: isPT
+                  ? 'Apaga a tua conta e os dados associados'
+                  : 'Delete your account and associated data',
+              onTap: auth.isLoading ? null : () => _confirmDeleteAccount(isPT),
               titleColor: AppColors.error,
             ),
           ] else ...[

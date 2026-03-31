@@ -51,8 +51,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final newBooks = books.isNotEmpty
         ? books
         : (translation == 'ARC'
-            ? AppConstants.allBooksARC()
-            : AppConstants.allBooksKJV());
+              ? AppConstants.allBooksARC()
+              : AppConstants.allBooksKJV());
 
     final newBook = (currentIdx > 0 && currentIdx < newBooks.length)
         ? newBooks[currentIdx]
@@ -131,9 +131,11 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     _exitSelectionMode();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(language == 'pt'
-            ? (n > 1 ? '$n versículos copiados' : 'Versículo copiado')
-            : (n > 1 ? '$n verses copied' : 'Verse copied')),
+        content: Text(
+          language == 'pt'
+              ? (n > 1 ? '$n versículos copiados' : 'Versículo copiado')
+              : (n > 1 ? '$n verses copied' : 'Verse copied'),
+        ),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),
@@ -233,45 +235,50 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
           Expanded(
             child: _loading
                 ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary))
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )
                 : _verses.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.menu_book_outlined,
-                                size: 48, color: AppColors.primary),
-                            const SizedBox(height: 12),
-                            Text(
-                              isPT
-                                  ? 'Base de dados da Bíblia não encontrada.\nAdiciona os arquivos .db em assets/bible/'
-                                  : 'Bible database not found.\nAdd .db files to assets/bible/',
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: context.ac.textSecondary),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.menu_book_outlined,
+                          size: 48,
+                          color: AppColors.primary,
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-                        keyboardDismissBehavior:
-                            ScrollViewKeyboardDismissBehavior.onDrag,
-                        itemCount: _verses.length,
-                        itemBuilder: (context, index) {
-                          final auth = ref.read(authProvider);
-                          return _VerseRow(
-                            verse: _verses[index],
-                            fontSize: settings.fontSize,
-                            language: settings.language,
-                            isPremium: auth.user?.isPremium ?? false,
-                            selectionMode: _selectionMode,
-                            isSelected: _selectedIndices.contains(index),
-                            onLongPress: () => _enterSelectionMode(index),
-                            onSelect: () => _toggleSelection(index),
-                          );
-                        },
-                      ),
+                        const SizedBox(height: 12),
+                        Text(
+                          isPT
+                              ? 'Base de dados da Bíblia não encontrada.\nAdiciona os arquivos .db em assets/bible/'
+                              : 'Bible database not found.\nAdd .db files to assets/bible/',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: context.ac.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    itemCount: _verses.length,
+                    itemBuilder: (context, index) {
+                      final auth = ref.read(authProvider);
+                      return _VerseRow(
+                        verse: _verses[index],
+                        fontSize: settings.fontSize,
+                        language: settings.language,
+                        isPremium: auth.user?.isPremium ?? false,
+                        selectionMode: _selectionMode,
+                        isSelected: _selectedIndices.contains(index),
+                        onLongPress: () => _enterSelectionMode(index),
+                        onSelect: () => _toggleSelection(index),
+                      );
+                    },
+                  ),
           ),
 
           // Multi-select action bar
@@ -378,23 +385,29 @@ class _BibleHeader extends StatelessWidget {
                   child: _HeaderPill(
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: books.contains(selectedBook) ? selectedBook : null,
+                        value: books.contains(selectedBook)
+                            ? selectedBook
+                            : null,
                         isExpanded: true,
                         isDense: true,
                         dropdownColor: ac.surface,
-                        icon: Icon(Icons.expand_more_rounded,
-                            color: AppColors.primary, size: 20),
+                        icon: Icon(
+                          Icons.expand_more_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
                         style: TextStyle(
                           color: ac.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                         items: books
-                            .map((b) => DropdownMenuItem(
-                                  value: b,
-                                  child: Text(b,
-                                      overflow: TextOverflow.ellipsis),
-                                ))
+                            .map(
+                              (b) => DropdownMenuItem(
+                                value: b,
+                                child: Text(b, overflow: TextOverflow.ellipsis),
+                              ),
+                            )
                             .toList(),
                         onChanged: (val) {
                           if (val != null) onBookChanged(val);
@@ -413,8 +426,11 @@ class _BibleHeader extends StatelessWidget {
                       isExpanded: true,
                       isDense: true,
                       dropdownColor: ac.surface,
-                      icon: Icon(Icons.expand_more_rounded,
-                          color: AppColors.primary, size: 20),
+                      icon: Icon(
+                        Icons.expand_more_rounded,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
                       style: TextStyle(
                         color: ac.textPrimary,
                         fontSize: 14,
@@ -451,7 +467,10 @@ class _BibleHeader extends StatelessWidget {
                   style: ButtonStyle(
                     visualDensity: VisualDensity.compact,
                     textStyle: WidgetStateProperty.all(
-                      const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                      const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -507,15 +526,15 @@ class _ActionPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
-    final color = enabled ? AppColors.primary : context.ac.textSecondary.withAlpha(80);
+    final color = enabled
+        ? AppColors.primary
+        : context.ac.textSecondary.withAlpha(80);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: enabled
-              ? AppColors.primary.withAlpha(14)
-              : context.ac.surface,
+          color: enabled ? AppColors.primary.withAlpha(14) : context.ac.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: enabled
@@ -607,9 +626,9 @@ class _VerseRowState extends State<_VerseRow> {
     setState(() => _expanded = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(widget.language == 'pt'
-            ? 'Versículo copiado'
-            : 'Verse copied'),
+        content: Text(
+          widget.language == 'pt' ? 'Versículo copiado' : 'Verse copied',
+        ),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),
@@ -644,14 +663,14 @@ class _VerseRowState extends State<_VerseRow> {
           color: isSelected
               ? AppColors.secondary.withAlpha(30)
               : _expanded
-                  ? AppColors.primary.withAlpha(12)
-                  : Colors.transparent,
+              ? AppColors.primary.withAlpha(12)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: isSelected
               ? Border.all(color: AppColors.secondary.withAlpha(100))
               : _expanded
-                  ? Border.all(color: AppColors.primary.withAlpha(40))
-                  : null,
+              ? Border.all(color: AppColors.primary.withAlpha(40))
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,7 +695,9 @@ class _VerseRowState extends State<_VerseRow> {
                           style: GoogleFonts.merriweather(
                             fontSize: widget.fontSize,
                             height: 1.8,
-                            color: Theme.of(context).extension<AppAdaptiveColors>()!.textPrimary,
+                            color: Theme.of(
+                              context,
+                            ).extension<AppAdaptiveColors>()!.textPrimary,
                           ),
                         ),
                       ],
@@ -692,7 +713,9 @@ class _VerseRowState extends State<_VerseRow> {
                       height: 22,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isSelected ? AppColors.secondary : Colors.transparent,
+                        color: isSelected
+                            ? AppColors.secondary
+                            : Colors.transparent,
                         border: Border.all(
                           color: isSelected
                               ? AppColors.secondary
@@ -701,8 +724,11 @@ class _VerseRowState extends State<_VerseRow> {
                         ),
                       ),
                       child: isSelected
-                          ? const Icon(Icons.check_rounded,
-                              size: 14, color: Colors.white)
+                          ? const Icon(
+                              Icons.check_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            )
                           : null,
                     ),
                   ),
@@ -775,7 +801,9 @@ class _ActionChip extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
+                color: Theme.of(
+                  context,
+                ).extension<AppAdaptiveColors>()!.cardBackground,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -834,7 +862,9 @@ class _MultiSelectBar extends StatelessWidget {
           Expanded(
             child: Text(
               isPT
-                  ? (count == 1 ? 'versículo selecionado' : 'versículos selecionados')
+                  ? (count == 1
+                        ? 'versículo selecionado'
+                        : 'versículos selecionados')
                   : (count == 1 ? 'verse selected' : 'verses selected'),
               style: TextStyle(
                 fontSize: 13,
@@ -942,7 +972,9 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
       maxChildSize: 0.85,
       builder: (ctx, scroll) => Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
+          color: Theme.of(
+            context,
+          ).extension<AppAdaptiveColors>()!.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -960,8 +992,10 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
                 children: [
-                  const Icon(Icons.lightbulb_rounded,
-                      color: AppColors.secondary),
+                  const Icon(
+                    Icons.lightbulb_rounded,
+                    color: AppColors.secondary,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -995,8 +1029,7 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
               decoration: BoxDecoration(
                 color: AppColors.secondary.withAlpha(15),
                 borderRadius: BorderRadius.circular(10),
-                border:
-                    Border.all(color: AppColors.secondary.withAlpha(60)),
+                border: Border.all(color: AppColors.secondary.withAlpha(60)),
               ),
               child: Text(
                 widget.verse.text,
@@ -1017,92 +1050,98 @@ class _ExplainBottomSheetState extends ConsumerState<_ExplainBottomSheet> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const CircularProgressIndicator(
-                              color: AppColors.primary),
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             isPT ? 'A explicar...' : 'Explaining...',
                             style: TextStyle(
-                                color: context.ac.textSecondary,
-                                fontSize: 13),
+                              color: context.ac.textSecondary,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
                     )
                   : _error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(_error!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    color: context.ac.textSecondary)),
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: context.ac.textSecondary),
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      controller: scroll,
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _explanation ?? '',
+                            style: TextStyle(
+                              fontSize: 16,
+                              height: 1.7,
+                              color: context.ac.textPrimary,
+                            ),
                           ),
-                        )
-                      : SingleChildScrollView(
-                          controller: scroll,
-                          padding:
-                              const EdgeInsets.fromLTRB(20, 20, 20, 40),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _explanation ?? '',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  height: 1.7,
-                                  color: context.ac.textPrimary,
+                          if (_context != null &&
+                              _context!.isNotEmpty &&
+                              _context != 'null') ...[
+                            const SizedBox(height: 20),
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).extension<AppAdaptiveColors>()!.surface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: context.ac.cardBorder,
                                 ),
                               ),
-                              if (_context != null &&
-                                  _context!.isNotEmpty &&
-                                  _context != 'null') ...[
-                                const SizedBox(height: 20),
-                                Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).extension<AppAdaptiveColors>()!.surface,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                        color: context.ac.cardBorder),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
                                     children: [
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.info_outline,
-                                              size: 14,
-                                              color: AppColors.primary),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            isPT
-                                                ? 'Contexto histórico'
-                                                : 'Historical context',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppColors.primary,
-                                            ),
-                                          ),
-                                        ],
+                                      const Icon(
+                                        Icons.info_outline,
+                                        size: 14,
+                                        color: AppColors.primary,
                                       ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        _context!,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          height: 1.6,
-                                          color: context.ac.textSecondary,
+                                        isPT
+                                            ? 'Contexto histórico'
+                                            : 'Historical context',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.primary,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _context!,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      height: 1.6,
+                                      color: context.ac.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -1168,9 +1207,7 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
       if (!mounted) return;
       final msg = e.toString().replaceFirst('Exception: ', '');
       setState(() {
-        _error = isPT
-            ? 'Erro ao carregar:\n$msg'
-            : 'Error loading:\n$msg';
+        _error = isPT ? 'Erro ao carregar:\n$msg' : 'Error loading:\n$msg';
         _loading = false;
       });
     }
@@ -1184,7 +1221,9 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
       maxChildSize: 0.95,
       builder: (ctx, scroll) => Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
+          color: Theme.of(
+            context,
+          ).extension<AppAdaptiveColors>()!.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -1234,7 +1273,9 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
               margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).extension<AppAdaptiveColors>()!.surface,
+                color: Theme.of(
+                  context,
+                ).extension<AppAdaptiveColors>()!.surface,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: context.ac.cardBorder),
               ),
@@ -1257,37 +1298,40 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const CircularProgressIndicator(
-                              color: AppColors.primary),
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             isPT
                                 ? 'A analisar as palavras originais...'
                                 : 'Analyzing original words...',
                             style: TextStyle(
-                                color: context.ac.textSecondary, fontSize: 13),
+                              color: context.ac.textSecondary,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
                     )
                   : _error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(_error!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    color: context.ac.textSecondary)),
-                          ),
-                        )
-                      : ListView.separated(
-                          controller: scroll,
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
-                          itemCount: _words.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (_, i) =>
-                              _WordStudyCard(entry: _words[i], isPT: isPT),
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: context.ac.textSecondary),
                         ),
+                      ),
+                    )
+                  : ListView.separated(
+                      controller: scroll,
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                      itemCount: _words.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (_, i) =>
+                          _WordStudyCard(entry: _words[i], isPT: isPT),
+                    ),
             ),
           ],
         ),
@@ -1318,8 +1362,10 @@ class _WordStudyCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(6),
@@ -1327,15 +1373,20 @@ class _WordStudyCard extends StatelessWidget {
                 child: Text(
                   '"${entry.translatedWord}"',
                   style: TextStyle(
-                    color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
+                    color: Theme.of(
+                      context,
+                    ).extension<AppAdaptiveColors>()!.cardBackground,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.arrow_forward_rounded,
-                  size: 14, color: context.ac.textSecondary),
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: 14,
+                color: context.ac.textSecondary,
+              ),
               const SizedBox(width: 8),
               Text(
                 entry.originalWord,
@@ -1362,8 +1413,10 @@ class _WordStudyCard extends StatelessWidget {
               if (entry.strongsNumber.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.secondary.withAlpha(30),
                     borderRadius: BorderRadius.circular(4),
@@ -1397,7 +1450,10 @@ class _WordStudyCard extends StatelessWidget {
           Text(
             entry.meaning,
             style: TextStyle(
-                fontSize: 14, color: context.ac.textPrimary, height: 1.5),
+              fontSize: 14,
+              color: context.ac.textPrimary,
+              height: 1.5,
+            ),
           ),
           if (entry.insight.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -1414,10 +1470,11 @@ class _WordStudyCard extends StatelessWidget {
             Text(
               entry.insight,
               style: TextStyle(
-                  fontSize: 14,
-                  color: context.ac.textPrimary,
-                  height: 1.5,
-                  fontStyle: FontStyle.italic),
+                fontSize: 14,
+                color: context.ac.textPrimary,
+                height: 1.5,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ],
@@ -1541,7 +1598,9 @@ class _HistoricalContextBottomSheetState
       maxChildSize: 0.95,
       builder: (ctx, scroll) => Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
+          color: Theme.of(
+            context,
+          ).extension<AppAdaptiveColors>()!.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -1551,14 +1610,18 @@ class _HistoricalContextBottomSheetState
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: context.ac.divider,
-                  borderRadius: BorderRadius.circular(2)),
+                color: context.ac.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  const Icon(Icons.history_edu_rounded, color: AppColors.primary),
+                  const Icon(
+                    Icons.history_edu_rounded,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -1572,54 +1635,57 @@ class _HistoricalContextBottomSheetState
             Expanded(
               child: _loading
                   ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary))
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    )
                   : _error != null
-                      ? Center(child: Text(_error!))
-                      : SingleChildScrollView(
-                          controller: scroll,
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (_context!['timePeriod'] != null)
-                                _ContextTile(
-                                  icon: Icons.schedule,
-                                  label: 'Período Histórico',
-                                  text: _context!['timePeriod'].toString(),
-                                ),
-                              if (_context!['author'] != null)
-                                _ContextTile(
-                                  icon: Icons.person_outline,
-                                  label: 'Autor',
-                                  text: _context!['author'].toString(),
-                                ),
-                              if (_context!['audience'] != null)
-                                _ContextTile(
-                                  icon: Icons.groups_outlined,
-                                  label: 'Destinatários',
-                                  text: _context!['audience'].toString(),
-                                ),
-                              if (_context!['geographicContext'] != null)
-                                _ContextTile(
-                                  icon: Icons.location_on_outlined,
-                                  label: 'Contexto Geográfico',
-                                  text: _context!['geographicContext'].toString(),
-                                ),
-                              if (_context!['purpose'] != null)
-                                _ContextTile(
-                                  icon: Icons.lightbulb_outline,
-                                  label: 'Propósito',
-                                  text: _context!['purpose'].toString(),
-                                ),
-                              if (_context!['summary'] != null)
-                                _ContextTile(
-                                  icon: Icons.notes_rounded,
-                                  label: 'Resumo',
-                                  text: _context!['summary'].toString(),
-                                ),
-                            ],
-                          ),
-                        ),
+                  ? Center(child: Text(_error!))
+                  : SingleChildScrollView(
+                      controller: scroll,
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_context!['timePeriod'] != null)
+                            _ContextTile(
+                              icon: Icons.schedule,
+                              label: 'Período Histórico',
+                              text: _context!['timePeriod'].toString(),
+                            ),
+                          if (_context!['author'] != null)
+                            _ContextTile(
+                              icon: Icons.person_outline,
+                              label: 'Autor',
+                              text: _context!['author'].toString(),
+                            ),
+                          if (_context!['audience'] != null)
+                            _ContextTile(
+                              icon: Icons.groups_outlined,
+                              label: 'Destinatários',
+                              text: _context!['audience'].toString(),
+                            ),
+                          if (_context!['geographicContext'] != null)
+                            _ContextTile(
+                              icon: Icons.location_on_outlined,
+                              label: 'Contexto Geográfico',
+                              text: _context!['geographicContext'].toString(),
+                            ),
+                          if (_context!['purpose'] != null)
+                            _ContextTile(
+                              icon: Icons.lightbulb_outline,
+                              label: 'Propósito',
+                              text: _context!['purpose'].toString(),
+                            ),
+                          if (_context!['summary'] != null)
+                            _ContextTile(
+                              icon: Icons.notes_rounded,
+                              label: 'Resumo',
+                              text: _context!['summary'].toString(),
+                            ),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -1654,8 +1720,7 @@ class _BibleChatBottomSheet extends ConsumerStatefulWidget {
       _BibleChatBottomSheetState();
 }
 
-class _BibleChatBottomSheetState
-    extends ConsumerState<_BibleChatBottomSheet> {
+class _BibleChatBottomSheetState extends ConsumerState<_BibleChatBottomSheet> {
   final _ctrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final List<_ChatMessage> _messages = [];
@@ -1685,12 +1750,14 @@ class _BibleChatBottomSheetState
       if (!hasKey) {
         if (!mounted) return;
         setState(() {
-          _messages.add(_ChatMessage(
-            role: 'assistant',
-            content: isPT
-                ? 'Chave OpenAI não configurada. Vai a Definições e adiciona a tua chave API.'
-                : 'OpenAI key not configured. Go to Settings and add your API key.',
-          ));
+          _messages.add(
+            _ChatMessage(
+              role: 'assistant',
+              content: isPT
+                  ? 'Chave OpenAI não configurada. Vai a Definições e adiciona a tua chave API.'
+                  : 'OpenAI key not configured. Go to Settings and add your API key.',
+            ),
+          );
           _sending = false;
         });
         return;
@@ -1731,10 +1798,12 @@ class _BibleChatBottomSheetState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _messages.add(_ChatMessage(
-          role: 'assistant',
-          content: e.toString().replaceFirst('Exception: ', ''),
-        ));
+        _messages.add(
+          _ChatMessage(
+            role: 'assistant',
+            content: e.toString().replaceFirst('Exception: ', ''),
+          ),
+        );
         _sending = false;
       });
     }
@@ -1763,7 +1832,9 @@ class _BibleChatBottomSheetState
       child: Container(
         height: MediaQuery.of(context).size.height * 0.88,
         decoration: BoxDecoration(
-          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
+          color: Theme.of(
+            context,
+          ).extension<AppAdaptiveColors>()!.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -1823,8 +1894,11 @@ class _BibleChatBottomSheetState
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.chat_bubble_outline_rounded,
-                                  size: 48, color: AppColors.primary),
+                              const Icon(
+                                Icons.chat_bubble_outline_rounded,
+                                size: 48,
+                                color: AppColors.primary,
+                              ),
                               const SizedBox(height: 16),
                               Text(
                                 isPT
@@ -1848,14 +1922,16 @@ class _BibleChatBottomSheetState
                       keyboardDismissBehavior:
                           ScrollViewKeyboardDismissBehavior.onDrag,
                       itemCount: _messages.length,
-                      itemBuilder: (_, i) =>
-                          _ChatBubble(message: _messages[i]),
+                      itemBuilder: (_, i) => _ChatBubble(message: _messages[i]),
                     ),
             ),
             // Typing indicator
             if (_sending)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
                 child: Row(
                   children: [
                     const SizedBox(
@@ -1870,7 +1946,9 @@ class _BibleChatBottomSheetState
                     Text(
                       '...',
                       style: TextStyle(
-                          color: context.ac.textSecondary, fontSize: 13),
+                        color: context.ac.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -1895,14 +1973,19 @@ class _BibleChatBottomSheetState
                       maxLines: 4,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: InputDecoration(
-                        hintText:
-                            isPT ? 'Faz uma pergunta...' : 'Ask a question...',
+                        hintText: isPT
+                            ? 'Faz uma pergunta...'
+                            : 'Ask a question...',
                         hintStyle: TextStyle(
-                            color: context.ac.textSecondary, fontSize: 14),
+                          color: context.ac.textSecondary,
+                          fontSize: 14,
+                        ),
                         filled: true,
                         fillColor: context.ac.inputFill,
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide.none,
@@ -1921,8 +2004,11 @@ class _BibleChatBottomSheetState
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(22),
                       ),
-                      child: const Icon(Icons.send_rounded,
-                          color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
@@ -1946,8 +2032,9 @@ class _ChatBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser) ...[
@@ -1959,14 +2046,16 @@ class _ChatBubble extends StatelessWidget {
                 color: AppColors.primary,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.auto_awesome,
-                  size: 14, color: Colors.white),
+              child: const Icon(
+                Icons.auto_awesome,
+                size: 14,
+                color: Colors.white,
+              ),
             ),
           ],
           Flexible(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isUser ? AppColors.primary : context.ac.surface,
                 borderRadius: BorderRadius.only(
@@ -2036,10 +2125,9 @@ class _ContextTile extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             text,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(height: 1.6),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(height: 1.6),
           ),
         ],
       ),

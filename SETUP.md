@@ -26,6 +26,36 @@ npm run dev   # development (nodemon)
 npm start     # production
 ```
 
+### Deploy on Coolify
+
+Use the `backend/` directory as the application root.
+
+1. Create a new application in Coolify from your Git repository
+2. Set **Base Directory** to `backend`
+3. Choose **Dockerfile** build mode
+4. Keep the port as `3000`
+5. Add these environment variables in Coolify:
+
+```env
+PORT=3000
+NODE_ENV=production
+MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/shalom_bible
+JWT_SECRET=your_super_secret_jwt_key_here
+JWT_EXPIRES_IN=30d
+GEMINI_API_KEY=your_gemini_api_key
+OPENAI_API_KEY=your_openai_api_key
+GEMINI_MODEL_FREE=gemini-2.5-flash
+GEMINI_MODEL_PREMIUM=gemini-2.5-pro
+OPENAI_MODEL_FREE=gpt-4.1-mini
+OPENAI_MODEL_PREMIUM=gpt-4.1
+```
+
+6. Set the health check path to `/health`
+7. Deploy
+
+After deployment, point the Flutter app to:
+`https://your-coolify-domain/api`
+
 ### API Endpoints
 
 | Method | Route | Description |
@@ -33,12 +63,17 @@ npm start     # production
 | POST | /api/auth/register | Create account |
 | POST | /api/auth/login | Login |
 | GET | /api/auth/me | Current user profile |
+| DELETE | /api/auth/me | Delete current user account |
 | POST | /api/auth/google | Google OAuth |
+| POST | /api/ai/scenario-search | AI scenario search |
+| POST | /api/ai/explain-verse | AI verse explanation |
+| POST | /api/ai/historical-context | AI historical context |
+| POST | /api/ai/word-study | AI word study |
+| POST | /api/ai/bible-chat | AI tutor chat |
+| POST | /api/ai/sermon-outline | AI sermon generation |
 | GET | /api/sermons | List sermons |
 | POST | /api/sermons | Save sermon |
 | DELETE | /api/sermons/:id | Delete sermon |
-| POST | /api/usage/increment | Increment usage counter |
-| GET | /api/usage | Get usage stats |
 
 ---
 
@@ -109,11 +144,7 @@ cd flutter_app
 flutter pub get
 ```
 
-2. Open the app and go to **Settings** (gear icon)
-
-3. Enter your **OpenAI API Key** (from platform.openai.com)
-
-4. Configure the **Backend URL** in:
+2. Configure the **Backend URL** in:
    `lib/core/constants/app_constants.dart`
    ```dart
    static const String backendBaseUrl = 'https://your-backend.com/api';
@@ -152,11 +183,13 @@ MONGODB_URI=mongodb+srv://...
 JWT_SECRET=your_jwt_secret
 JWT_EXPIRES_IN=30d
 NODE_ENV=production
+GEMINI_API_KEY=...
+OPENAI_API_KEY=...
+GEMINI_MODEL_FREE=gemini-2.5-flash
+GEMINI_MODEL_PREMIUM=gemini-2.5-pro
+OPENAI_MODEL_FREE=gpt-4.1-mini
+OPENAI_MODEL_PREMIUM=gpt-4.1
 ```
-
-### Flutter (set in Settings screen at runtime)
-- **OpenAI API Key** — stored securely in flutter_secure_storage
-- These are never hardcoded in the app
 
 ---
 
@@ -167,15 +200,16 @@ Flutter App
 ├── Riverpod (state management)
 ├── Dio (HTTP client)
 ├── SQLite (Bible data, offline)
-└── flutter_secure_storage (JWT + API key)
+└── flutter_secure_storage (JWT)
 
 Backend API (Node.js)
 ├── Express
 ├── MongoDB Atlas
 ├── Mongoose
-└── JWT auth
+├── JWT auth
+└── AI orchestration + usage limits
 
-AI (OpenAI API)
-├── GPT-4.1-mini (free plan)
-└── GPT-4.1 (premium)
+AI Providers
+├── Gemini primary
+└── OpenAI fallback
 ```

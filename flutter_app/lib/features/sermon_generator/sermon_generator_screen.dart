@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/sermon_model.dart';
-import '../../data/remote/openai_service.dart';
 import '../../data/remote/api_client.dart';
+import '../../data/remote/openai_service.dart';
 import '../../shared/providers/auth_provider.dart';
+import '../../shared/providers/library_provider.dart';
 import '../../shared/providers/settings_provider.dart';
 import '../../shared/widgets/app_button.dart';
 import '../../shared/widgets/loading_overlay.dart';
@@ -19,8 +20,7 @@ class SermonGeneratorScreen extends ConsumerStatefulWidget {
       _SermonGeneratorScreenState();
 }
 
-class _SermonGeneratorScreenState
-    extends ConsumerState<SermonGeneratorScreen> {
+class _SermonGeneratorScreenState extends ConsumerState<SermonGeneratorScreen> {
   final _controller = TextEditingController();
   SermonContent? _content;
   String _generatedTitle = '';
@@ -43,18 +43,6 @@ class _SermonGeneratorScreenState
 
     final auth = ref.read(authProvider);
     final settings = ref.read(settingsProvider);
-
-    // Check usage limits for logged-in users
-    if (auth.isLoggedIn) {
-      final allowed =
-          await ApiClient.instance.incrementUsage('sermonGenerator');
-      if (!allowed) {
-        setState(() => _error = settings.language == 'pt'
-            ? 'Limite mensal atingido (2 esboços). Actualiza para Premium.'
-            : 'Monthly limit reached (2 outlines). Upgrade to Premium.');
-        return;
-      }
-    }
 
     setState(() {
       _isLoading = true;
@@ -83,9 +71,7 @@ class _SermonGeneratorScreenState
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _error = e.toString().contains('OpenAI API key not configured')
-            ? 'Chave da API OpenAI não configurada. Vai às Definições.'
-            : 'Erro ao gerar esboço. Verifica a tua ligação à internet.';
+        _error = 'Erro ao gerar esboço. Verifica a tua ligação ou o backend.';
       });
     }
   }
@@ -112,6 +98,7 @@ class _SermonGeneratorScreenState
         'inputPrompt': _controller.text.trim(),
         'content': _content!.toJson(),
       });
+      ref.read(libraryRefreshProvider.notifier).state++;
       setState(() {
         _isSaving = false;
         _saved = true;
@@ -140,19 +127,21 @@ class _SermonGeneratorScreenState
   void _copy() {
     if (_content == null) return;
     final text = _content!.toPlainText(
-        _generatedTitle.isNotEmpty ? _generatedTitle : 'Esboço',
-        _generatedPassage);
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Esboço copiado!')),
+      _generatedTitle.isNotEmpty ? _generatedTitle : 'Esboço',
+      _generatedPassage,
     );
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Esboço copiado!')));
   }
 
   void _share() {
     if (_content == null) return;
     final text = _content!.toPlainText(
-        _generatedTitle.isNotEmpty ? _generatedTitle : 'Esboço',
-        _generatedPassage);
+      _generatedTitle.isNotEmpty ? _generatedTitle : 'Esboço',
+      _generatedPassage,
+    );
     Share.share(text, subject: _generatedTitle);
   }
 
@@ -162,7 +151,8 @@ class _SermonGeneratorScreenState
       builder: (ctx) => AlertDialog(
         title: const Text('Conta necessária'),
         content: const Text(
-            'Cria uma conta para guardar os teus esboços na biblioteca.'),
+          'Cria uma conta para guardar os teus esboços na biblioteca.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -194,133 +184,146 @@ class _SermonGeneratorScreenState
         child: SafeArea(
           bottom: false,
           child: Column(
-          children: [
-            // Header — full when empty, compact when results exist
-            if (_content == null && !_isLoading) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.auto_stories_rounded,
-                          color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      isPT ? 'Ajudante de Esboço' : 'Outline Assistant',
-                      style: theme.textTheme.headlineMedium,
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _controller,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText: isPT
-                            ? 'Digite um tema, passagem ou situação para pregar...'
-                            : 'Enter a theme, passage or situation to preach about...',
-                        hintMaxLines: 3,
-                      ),
-                      textCapitalization: TextCapitalization.sentences,
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: AppButton(
-                        label: isPT ? 'Gerar Esboço' : 'Generate Outline',
-                        icon: Icons.auto_awesome,
-                        onPressed: _isLoading ? null : _generate,
-                        isLoading: _isLoading,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else ...[
-              // Compact bar
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: context.ac.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: context.ac.cardBorder),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.auto_stories_rounded,
-                          color: Colors.white, size: 14),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _submittedTopic,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: context.ac.textPrimary,
-                          fontWeight: FontWeight.w500,
+            children: [
+              // Header — full when empty, compact when results exist
+              if (_content == null && !_isLoading) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.auto_stories_rounded,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () => setState(() {
-                        _content = null;
-                        _error = null;
-                      }),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      const SizedBox(width: 12),
+                      Text(
+                        isPT ? 'Ajudante de Esboço' : 'Outline Assistant',
+                        style: theme.textTheme.headlineMedium,
                       ),
-                      child: Text(
-                        isPT ? 'Novo' : 'New',
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-            ],
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _controller,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText: isPT
+                              ? 'Digite um tema, passagem ou situação para pregar...'
+                              : 'Enter a theme, passage or situation to preach about...',
+                          hintMaxLines: 3,
+                        ),
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: AppButton(
+                          label: isPT ? 'Gerar Esboço' : 'Generate Outline',
+                          icon: Icons.auto_awesome,
+                          onPressed: _isLoading ? null : _generate,
+                          isLoading: _isLoading,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // Compact bar
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: context.ac.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: context.ac.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.auto_stories_rounded,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _submittedTopic,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: context.ac.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() {
+                          _content = null;
+                          _error = null;
+                        }),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          isPT ? 'Novo' : 'New',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
 
-            // Content
-            Expanded(
-              child: _isLoading
-                  ? AILoadingWidget(
-                      message: isPT
-                          ? 'A IA está a preparar o teu esboço...'
-                          : 'AI is preparing your outline...',
-                    )
-                  : _error != null
-                      ? _buildError()
-                      : _content == null
-                          ? _buildEmptyState(isPT)
-                          : _buildOutline(isPT),
-            ),
-          ],
+              // Content
+              Expanded(
+                child: _isLoading
+                    ? AILoadingWidget(
+                        message: isPT
+                            ? 'A IA está a preparar o teu esboço...'
+                            : 'AI is preparing your outline...',
+                      )
+                    : _error != null
+                    ? _buildError()
+                    : _content == null
+                    ? _buildEmptyState(isPT)
+                    : _buildOutline(isPT),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -337,10 +340,9 @@ class _SermonGeneratorScreenState
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: context.ac.textSecondary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: context.ac.textSecondary),
             ),
           ],
         ),
@@ -355,8 +357,11 @@ class _SermonGeneratorScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_stories_outlined,
-                size: 64, color: AppColors.primary.withAlpha(80)),
+            Icon(
+              Icons.auto_stories_outlined,
+              size: 64,
+              color: AppColors.primary.withAlpha(80),
+            ),
             const SizedBox(height: 16),
             Text(
               isPT
@@ -364,9 +369,9 @@ class _SermonGeneratorScreenState
                   : 'Describe the theme or passage\nand AI will generate a complete outline',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.ac.textSecondary,
-                    height: 1.6,
-                  ),
+                color: context.ac.textSecondary,
+                height: 1.6,
+              ),
             ),
           ],
         ),
@@ -392,8 +397,14 @@ class _SermonGeneratorScreenState
                     maxLines: 1,
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -408,8 +419,14 @@ class _SermonGeneratorScreenState
                     maxLines: 1,
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -424,8 +441,14 @@ class _SermonGeneratorScreenState
                     maxLines: 1,
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -441,9 +464,13 @@ class _SermonGeneratorScreenState
             child: _saved
                 ? OutlinedButton.icon(
                     onPressed: null,
-                    icon: const Icon(Icons.check_circle, color: AppColors.success),
+                    icon: const Icon(
+                      Icons.check_circle,
+                      color: AppColors.success,
+                    ),
                     label: Text(
-                        isPT ? 'Guardado na Biblioteca' : 'Saved to Library'),
+                      isPT ? 'Guardado na Biblioteca' : 'Saved to Library',
+                    ),
                   )
                 : AppButton(
                     label: isPT ? 'Guardar na Biblioteca' : 'Save to Library',
@@ -481,11 +508,7 @@ class _SermonGeneratorScreenState
               ),
               ...List.generate(_content!.points.length, (i) {
                 final p = _content!.points[i];
-                return _PointCard(
-                  number: i + 1,
-                  point: p,
-                  isPT: isPT,
-                );
+                return _PointCard(number: i + 1, point: p, isPT: isPT);
               }),
               if (_content!.illustrations.isNotEmpty)
                 _IllustrationsCard(
@@ -560,11 +583,9 @@ class _SectionCard extends StatelessWidget {
             content,
             style: isTitle
                 ? Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: context.ac.textPrimary,
-                    )
-                : Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      height: 1.7,
-                    ),
+                    color: context.ac.textPrimary,
+                  )
+                : Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.7),
           ),
         ],
       ),
@@ -607,7 +628,9 @@ class _PointCard extends StatelessWidget {
                 child: Text(
                   '${isPT ? 'Ponto' : 'Point'} $number',
                   style: TextStyle(
-                    color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
+                    color: Theme.of(
+                      context,
+                    ).extension<AppAdaptiveColors>()!.cardBackground,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -616,14 +639,13 @@ class _PointCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            point.title,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text(point.title, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
             point.development,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.7),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(height: 1.7),
           ),
           if (point.supportingVerses.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -631,24 +653,29 @@ class _PointCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: point.supportingVerses
-                  .map((v) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary.withAlpha(25),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                              color: AppColors.secondary.withAlpha(100)),
+                  .map(
+                    (v) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withAlpha(25),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.secondary.withAlpha(100),
                         ),
-                        child: Text(
-                          v,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.secondary,
-                          ),
+                      ),
+                      child: Text(
+                        v,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.secondary,
                         ),
-                      ))
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
           ],
@@ -662,10 +689,7 @@ class _IllustrationsCard extends StatelessWidget {
   final List<String> illustrations;
   final bool isPT;
 
-  const _IllustrationsCard({
-    required this.illustrations,
-    required this.isPT,
-  });
+  const _IllustrationsCard({required this.illustrations, required this.isPT});
 
   @override
   Widget build(BuildContext context) {
@@ -682,8 +706,11 @@ class _IllustrationsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.format_quote_rounded,
-                  size: 16, color: AppColors.secondary),
+              const Icon(
+                Icons.format_quote_rounded,
+                size: 16,
+                color: AppColors.secondary,
+              ),
               const SizedBox(width: 8),
               Text(
                 isPT ? 'Ilustrações e Histórias' : 'Illustrations & Stories',
@@ -697,41 +724,44 @@ class _IllustrationsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          ...illustrations.asMap().entries.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: const BoxDecoration(
-                        color: AppColors.secondary,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${e.key + 1}',
-                        style: TextStyle(
-                          color: Theme.of(context).extension<AppAdaptiveColors>()!.cardBackground,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
+          ...illustrations.asMap().entries.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: const BoxDecoration(
+                      color: AppColors.secondary,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${e.key + 1}',
+                      style: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).extension<AppAdaptiveColors>()!.cardBackground,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        e.value,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(height: 1.6),
-                      ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      e.value,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(height: 1.6),
                     ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

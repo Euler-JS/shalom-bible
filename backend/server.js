@@ -23,6 +23,7 @@ app.use('/api/', limiter);
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/ai', require('./routes/ai'));
 app.use('/api/sermons', require('./routes/sermons'));
 app.use('/api/usage', require('./routes/usage'));
 
