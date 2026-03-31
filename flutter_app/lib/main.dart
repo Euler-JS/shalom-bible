@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/constants/app_constants.dart';
 import 'core/theme/app_theme.dart';
 import 'data/local/bible_database.dart';
-import 'data/remote/openai_service.dart';
-import 'features/scenario_search/scenario_search_screen.dart';
-import 'features/reading/reading_screen.dart';
-import 'features/sermon_generator/sermon_generator_screen.dart';
 import 'features/library/library_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/reading/reading_screen.dart';
+import 'features/scenario_search/scenario_search_screen.dart';
+import 'features/sermon_generator/sermon_generator_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'shared/providers/settings_provider.dart';
 
@@ -25,14 +23,6 @@ void main() async {
 
   // Initialize Bible database (copies SQLite assets on first run)
   await BibleDatabase.instance.init();
-
-  // Pre-load dev API key if set and not yet stored
-  if (AppConstants.openAiDevKey.isNotEmpty) {
-    final hasKey = await OpenAIService.instance.hasApiKey();
-    if (!hasKey) {
-      await OpenAIService.instance.saveApiKey(AppConstants.openAiDevKey);
-    }
-  }
 
   runApp(const ProviderScope(child: ShalomBibleApp()));
 }
@@ -54,10 +44,7 @@ class ShalomBibleApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('pt', 'BR'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: const [Locale('pt', 'BR'), Locale('en', 'US')],
       home: const _AppRoot(),
     );
   }
@@ -111,10 +98,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).padding.bottom + 88,
               ),
-              child: IndexedStack(
-                index: _currentIndex,
-                children: _screens,
-              ),
+              child: IndexedStack(index: _currentIndex, children: _screens),
             ),
           ),
           // Floating pill nav bar
@@ -150,9 +134,7 @@ class _FloatingNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDark;
-    final bgColor = isDark
-        ? const Color(0xFF2A2840)
-        : Colors.white;
+    final bgColor = isDark ? const Color(0xFF2A2840) : Colors.white;
 
     return Container(
       height: 64,
@@ -160,9 +142,7 @@ class _FloatingNavBar extends StatelessWidget {
         color: bgColor,
         borderRadius: BorderRadius.circular(32),
         border: Border.all(
-          color: isDark
-              ? Colors.white.withAlpha(18)
-              : const Color(0xFFE8E6F0),
+          color: isDark ? Colors.white.withAlpha(18) : const Color(0xFFE8E6F0),
           width: 1,
         ),
         boxShadow: [
@@ -204,8 +184,8 @@ class _FloatingNavBar extends StatelessWidget {
                     color: isSelected
                         ? AppColors.primary
                         : (isDark
-                            ? Colors.white.withAlpha(140)
-                            : const Color(0xFF9996B5)),
+                              ? Colors.white.withAlpha(140)
+                              : const Color(0xFF9996B5)),
                   ),
                 ],
               ),

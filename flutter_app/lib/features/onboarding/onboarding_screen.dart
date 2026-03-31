@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/theme/app_theme.dart';
 import '../../shared/providers/settings_provider.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -48,12 +47,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     icon: Icons.translate_rounded,
     titlePT: 'Cada Palavra\nTem Profundidade',
     titleEN: 'Every Word\nHas Depth',
-    subtitlePT: 'Lê a Bíblia completa e descobre o que estava por detrás das palavras originais.',
-    subtitleEN: 'Read the complete Bible and discover what was behind the original words.',
+    subtitlePT:
+        'Lê a Bíblia completa e descobre o que estava por detrás das palavras originais.',
+    subtitleEN:
+        'Read the complete Bible and discover what was behind the original words.',
     features: [
       _Feature(Icons.abc, 'Hebraico & Grego', 'Hebrew & Greek'),
-      _Feature(Icons.history_edu_rounded, 'Contexto histórico', 'Historical context'),
-      _Feature(Icons.lightbulb_outline, 'Explicações simples', 'Simple explanations'),
+      _Feature(
+        Icons.history_edu_rounded,
+        'Contexto histórico',
+        'Historical context',
+      ),
+      _Feature(
+        Icons.lightbulb_outline,
+        'Explicações simples',
+        'Simple explanations',
+      ),
     ],
     accentColor: Color(0xFF4AC9E3),
     isWelcome: false,
@@ -68,11 +77,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     icon: Icons.auto_stories_rounded,
     titlePT: 'Pregação com\nFundamento Real',
     titleEN: 'Preaching with\nReal Foundation',
-    subtitlePT: 'Gera esboços completos com pontos, ilustrações e oração — em segundos.',
-    subtitleEN: 'Generate complete outlines with points, illustrations and prayer — in seconds.',
+    subtitlePT:
+        'Gera esboços completos com pontos, ilustrações e oração — em segundos.',
+    subtitleEN:
+        'Generate complete outlines with points, illustrations and prayer — in seconds.',
     features: [
-      _Feature(Icons.format_list_bulleted, 'Estrutura completa', 'Complete structure'),
-      _Feature(Icons.format_quote_rounded, 'Histórias e ilustrações', 'Stories & illustrations'),
+      _Feature(
+        Icons.format_list_bulleted,
+        'Estrutura completa',
+        'Complete structure',
+      ),
+      _Feature(
+        Icons.format_quote_rounded,
+        'Histórias e ilustrações',
+        'Stories & illustrations',
+      ),
       _Feature(Icons.share_rounded, 'Partilha fácil', 'Easy sharing'),
     ],
     accentColor: Color(0xFFC9A84C),
@@ -83,7 +102,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   void initState() {
     super.initState();
     _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeIn);
     _fadeCtrl.forward();
   }
@@ -270,7 +291,9 @@ class _PageContent extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: Colors.white.withAlpha(15),
                   border: Border.all(
-                      color: data.accentColor.withAlpha(100), width: 1.5),
+                    color: data.accentColor.withAlpha(100),
+                    width: 1.5,
+                  ),
                 ),
               ),
               ClipOval(
@@ -349,11 +372,7 @@ class _PageContent extends StatelessWidget {
                 child: Icon(data.icon, color: data.accentColor, size: 36),
               ),
               const SizedBox(width: 14),
-              Image.asset(
-                'assets/images/icon.png',
-                width: 44,
-                height: 44,
-              ),
+              Image.asset('assets/images/icon.png', width: 44, height: 44),
             ],
           ),
           const SizedBox(height: 28),
@@ -382,31 +401,33 @@ class _PageContent extends StatelessWidget {
           const SizedBox(height: 36),
 
           // Feature bullets
-          ...data.features.map((f) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: data.accentColor.withAlpha(30),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(f.icon, color: data.accentColor, size: 20),
+          ...data.features.map(
+            (f) => Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: data.accentColor.withAlpha(30),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(width: 14),
-                    Text(
-                      isPT ? f.labelPT : f.labelEN,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Icon(f.icon, color: data.accentColor, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    isPT ? f.labelPT : f.labelEN,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
                     ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

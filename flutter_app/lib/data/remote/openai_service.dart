@@ -8,15 +8,27 @@ import '../models/sermon_model.dart';
 class OpenAIService {
   static OpenAIService? _instance;
   final _storage = const FlutterSecureStorage();
-  late final Dio _dio;
+  late final Dio _openAiDio;
+  late final Dio _geminiDio;
 
   OpenAIService._() {
-    _dio = Dio(BaseOptions(
-      baseUrl: AppConstants.openAiBaseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 120),
-      headers: {'Content-Type': 'application/json'},
-    ));
+    _openAiDio = Dio(
+      BaseOptions(
+        baseUrl: AppConstants.openAiBaseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 120),
+        headers: {'Content-Type': 'application/json'},
+      ),
+    );
+
+    _geminiDio = Dio(
+      BaseOptions(
+        baseUrl: AppConstants.geminiBaseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 120),
+        headers: {'Content-Type': 'application/json'},
+      ),
+    );
   }
 
   static OpenAIService get instance {
@@ -24,7 +36,25 @@ class OpenAIService {
     return _instance!;
   }
 
-  Future<String> _getApiKey() async {
+  Future<String> _getGeminiApiKey() async {
+    final inlineKey = AppConstants.geminiDevKey.trim();
+    if (inlineKey.isNotEmpty) {
+      return inlineKey;
+    }
+
+    final key = await _storage.read(key: AppConstants.geminiKeyStorage);
+    if (key == null || key.isEmpty) {
+      throw Exception('Gemini API key not configured.');
+    }
+    return key;
+  }
+
+  Future<String> _getOpenAiApiKey() async {
+    final inlineKey = AppConstants.openAiDevKey.trim();
+    if (inlineKey.isNotEmpty) {
+      return inlineKey;
+    }
+
     final key = await _storage.read(key: AppConstants.openAiKeyStorage);
     if (key == null || key.isEmpty) {
       throw Exception('OpenAI API key not configured.');
@@ -32,29 +62,144 @@ class OpenAIService {
     return key;
   }
 
-  Future<void> saveApiKey(String key) async {
-    await _storage.write(key: AppConstants.openAiKeyStorage, value: key);
+  Future<void> saveGeminiApiKey(String key) async {
+    if (key.trim().isEmpty) {
+      await _storage.delete(key: AppConstants.geminiKeyStorage);
+      return;
+    }
+    await _storage.write(key: AppConstants.geminiKeyStorage, value: key.trim());
   }
 
-  Future<bool> hasApiKey() async {
+  Future<void> saveOpenAiApiKey(String key) async {
+    if (key.trim().isEmpty) {
+      await _storage.delete(key: AppConstants.openAiKeyStorage);
+      return;
+    }
+    await _storage.write(key: AppConstants.openAiKeyStorage, value: key.trim());
+  }
+
+  Future<void> saveApiKey(String key) async {
+    await saveGeminiApiKey(key);
+  }
+
+  Future<String?> getGeminiApiKey() async {
+    return _storage.read(key: AppConstants.geminiKeyStorage);
+  }
+
+  Future<String?> getOpenAiApiKey() async {
+    return _storage.read(key: AppConstants.openAiKeyStorage);
+  }
+
+  Future<bool> hasGeminiApiKey() async {
+    if (AppConstants.geminiDevKey.trim().isNotEmpty) {
+      return true;
+    }
+    final key = await _storage.read(key: AppConstants.geminiKeyStorage);
+    return key != null && key.isNotEmpty;
+  }
+
+  Future<bool> hasOpenAiApiKey() async {
+    if (AppConstants.openAiDevKey.trim().isNotEmpty) {
+      return true;
+    }
     final key = await _storage.read(key: AppConstants.openAiKeyStorage);
     return key != null && key.isNotEmpty;
   }
 
-  String _chooseModel(bool isPremium) =>
-      isPremium ? AppConstants.modelPremium : AppConstants.modelFree;
+  Future<bool> hasApiKey() async {
+    return await hasGeminiApiKey() || await hasOpenAiApiKey();
+  }
 
-  Future<String> _chat({
+  String _chooseGeminiModel(bool isPremium) => isPremium
+      ? AppConstants.geminiModelPremium
+      : AppConstants.geminiModelFree;
+
+  String _chooseOpenAiModel(bool isPremium) => isPremium
+      ? AppConstants.openAiModelPremium
+      : AppConstants.openAiModelFree;
+
+  String _normalizeModelText(String text) {
+    final trimmed = text.trim();
+    if (!trimmed.startsWith('```')) return trimmed;
+
+    final lines = trimmed.split('\n');
+    if (lines.length < 3) return trimmed;
+    return lines.sublist(1, lines.length - 1).join('\n').trim();
+  }
+
+  Future<String> _chatWithGemini({
     required List<Map<String, String>> messages,
     required bool isPremium,
-    double temperature = 0.7,
+    required double temperature,
   }) async {
-    final apiKey = await _getApiKey();
-    final res = await _dio.post(
+    final apiKey = await _getGeminiApiKey();
+    final systemInstruction = messages
+        .where((message) => message['role'] == 'system')
+        .map((message) => message['content'] ?? '')
+        .where((content) => content.isNotEmpty)
+        .join('\n\n');
+
+    final contents = messages
+        .where((message) => message['role'] != 'system')
+        .map(
+          (message) => {
+            'role': message['role'] == 'assistant' ? 'model' : 'user',
+            'parts': [
+              {'text': message['content'] ?? ''},
+            ],
+          },
+        )
+        .toList();
+
+    final res = await _geminiDio.post(
+      '/models/${_chooseGeminiModel(isPremium)}:generateContent',
+      queryParameters: {'key': apiKey},
+      data: {
+        if (systemInstruction.isNotEmpty)
+          'systemInstruction': {
+            'parts': [
+              {'text': systemInstruction},
+            ],
+          },
+        'contents': contents,
+        'generationConfig': {
+          'temperature': temperature,
+          'responseMimeType': 'application/json',
+        },
+      },
+    );
+
+    final candidates = res.data['candidates'] as List<dynamic>? ?? const [];
+    if (candidates.isEmpty) {
+      throw Exception('Gemini returned no candidates.');
+    }
+
+    final content =
+        candidates.first['content'] as Map<String, dynamic>? ?? const {};
+    final parts = content['parts'] as List<dynamic>? ?? const [];
+    final text = parts
+        .map((part) => (part as Map<String, dynamic>)['text']?.toString() ?? '')
+        .join()
+        .trim();
+
+    if (text.isEmpty) {
+      throw Exception('Gemini returned empty content.');
+    }
+
+    return _normalizeModelText(text);
+  }
+
+  Future<String> _chatWithOpenAi({
+    required List<Map<String, String>> messages,
+    required bool isPremium,
+    required double temperature,
+  }) async {
+    final apiKey = await _getOpenAiApiKey();
+    final res = await _openAiDio.post(
       '/chat/completions',
       options: Options(headers: {'Authorization': 'Bearer $apiKey'}),
       data: {
-        'model': _chooseModel(isPremium),
+        'model': _chooseOpenAiModel(isPremium),
         'messages': messages,
         'temperature': temperature,
         'response_format': {'type': 'json_object'},
@@ -62,7 +207,38 @@ class OpenAIService {
     );
     final content =
         (res.data['choices'] as List)[0]['message']['content'] as String;
-    return content;
+    return _normalizeModelText(content);
+  }
+
+  Future<String> _chat({
+    required List<Map<String, String>> messages,
+    required bool isPremium,
+    double temperature = 0.7,
+  }) async {
+    final hasGemini = await hasGeminiApiKey();
+    final hasOpenAi = await hasOpenAiApiKey();
+
+    if (!hasGemini && !hasOpenAi) {
+      throw Exception('No AI provider configured.');
+    }
+
+    if (hasGemini) {
+      try {
+        return await _chatWithGemini(
+          messages: messages,
+          isPremium: isPremium,
+          temperature: temperature,
+        );
+      } catch (_) {
+        if (!hasOpenAi) rethrow;
+      }
+    }
+
+    return _chatWithOpenAi(
+      messages: messages,
+      isPremium: isPremium,
+      temperature: temperature,
+    );
   }
 
   // --- Scenario Search ---
@@ -71,17 +247,19 @@ class OpenAIService {
     required String language,
     required bool isPremium,
   }) async {
-    final langInstruction =
-        language == 'pt' ? 'Respond in Portuguese.' : 'Respond in English.';
+    final langInstruction = language == 'pt'
+        ? 'Respond in Portuguese.'
+        : 'Respond in English.';
 
     final messages = [
       {
         'role': 'system',
-        'content': '''You are a biblical scholar assistant. The user will describe a life situation or emotional state.
+        'content':
+            '''You are a biblical scholar assistant. The user will describe a life situation or emotional state.
 Your task is to find 3 to 5 Bible passages that are most relevant to that situation.
 For each passage, provide:
 1. The Bible reference (book, chapter, verse) in the format "Book Chapter:Verse" e.g. "João 3:16" or "John 3:16"
-2. A brief explanation (2-3 sentences) of why this passage applies to the user\'s situation
+2. A brief explanation (2-3 sentences) of why this passage applies to the user's situation
 $langInstruction
 Respond ONLY with valid JSON in this exact structure:
 {
@@ -99,10 +277,12 @@ Respond ONLY with valid JSON in this exact structure:
     final raw = await _chat(messages: messages, isPremium: isPremium);
     final json = jsonDecode(raw) as Map<String, dynamic>;
     final passages = (json['passages'] as List<dynamic>? ?? [])
-        .map((p) => ScenarioPassage(
-              reference: p['reference']?.toString() ?? '',
-              explanation: p['explanation']?.toString() ?? '',
-            ))
+        .map(
+          (p) => ScenarioPassage(
+            reference: p['reference']?.toString() ?? '',
+            explanation: p['explanation']?.toString() ?? '',
+          ),
+        )
         .toList();
     return passages;
   }
@@ -114,13 +294,15 @@ Respond ONLY with valid JSON in this exact structure:
     required String language,
     required bool isPremium,
   }) async {
-    final langInstruction =
-        language == 'pt' ? 'Respond in Portuguese.' : 'Respond in English.';
+    final langInstruction = language == 'pt'
+        ? 'Respond in Portuguese.'
+        : 'Respond in English.';
 
     final messages = [
       {
         'role': 'system',
-        'content': '''You are a biblical scholar. Provide a concise historical and cultural context.
+        'content':
+            '''You are a biblical scholar. Provide a concise historical and cultural context.
 $langInstruction
 Respond ONLY with valid JSON in this structure:
 {
@@ -134,8 +316,7 @@ Respond ONLY with valid JSON in this structure:
       },
       {
         'role': 'user',
-        'content':
-            'Provide historical context for $book chapter $chapter.',
+        'content': 'Provide historical context for $book chapter $chapter.',
       },
     ];
 
@@ -150,13 +331,15 @@ Respond ONLY with valid JSON in this structure:
     required String language,
     required bool isPremium,
   }) async {
-    final langInstruction =
-        language == 'pt' ? 'Responde em Português.' : 'Respond in English.';
+    final langInstruction = language == 'pt'
+        ? 'Responde em Português.'
+        : 'Respond in English.';
 
     final messages = [
       {
         'role': 'system',
-        'content': '''És um explicador bíblico acessível e honesto.
+        'content':
+            '''És um explicador bíblico acessível e honesto.
 O teu objectivo é ajudar qualquer pessoa — independente do nível educacional ou tradição religiosa — a compreender o que a Bíblia diz.
 Regras:
 - Linguagem simples e directa, sem jargão religioso
@@ -171,10 +354,7 @@ Responde APENAS com JSON válido:
   "context": "contexto histórico/cultural breve (opcional, pode ser null)"
 }''',
       },
-      {
-        'role': 'user',
-        'content': 'Explica $reference: "$verseText"',
-      },
+      {'role': 'user', 'content': 'Explica $reference: "$verseText"'},
     ];
 
     return _chat(messages: messages, isPremium: isPremium, temperature: 0.5);
@@ -189,12 +369,14 @@ Responde APENAS com JSON válido:
     required String language,
     required bool isPremium,
   }) async {
-    final langInstruction =
-        language == 'pt' ? 'Responde em Português.' : 'Respond in English.';
+    final langInstruction = language == 'pt'
+        ? 'Responde em Português.'
+        : 'Respond in English.';
 
     final systemMessage = {
       'role': 'system',
-      'content': '''És um tutor bíblico pessoal — acessível, honesto e respeitoso.
+      'content':
+          '''És um tutor bíblico pessoal — acessível, honesto e respeitoso.
 O utilizador está actualmente a ler $book capítulo $chapter.
 O teu papel é facilitar o conhecimento da Bíblia para qualquer pessoa, de forma simples e verdadeira.
 Regras:
@@ -229,15 +411,17 @@ O campo relatedVerses pode ser uma lista vazia [] se não houver versículos rel
     required String language,
     required bool isPremium,
   }) async {
-    final langInstruction =
-        language == 'pt' ? 'Respond in Portuguese.' : 'Respond in English.';
+    final langInstruction = language == 'pt'
+        ? 'Respond in Portuguese.'
+        : 'Respond in English.';
     final isOT = _isOldTestament(reference);
     final originalLang = isOT ? 'Hebrew' : 'Greek';
 
     final messages = [
       {
         'role': 'system',
-        'content': '''You are a biblical language scholar specializing in Hebrew and Greek.
+        'content':
+            '''You are a biblical language scholar specializing in Hebrew and Greek.
 Analyze the key theological words in the given Bible verse and explain their original $originalLang roots.
 Select 3 to 5 of the most meaningful words (nouns, verbs, and adjectives — skip conjunctions, articles, prepositions).
 $langInstruction
@@ -271,18 +455,80 @@ Respond ONLY with valid JSON:
 
   bool _isOldTestament(String reference) {
     const otBooks = [
-      'Gênesis', 'Genesis', 'Êxodo', 'Exodus', 'Levítico', 'Leviticus',
-      'Números', 'Numbers', 'Deuteronômio', 'Deuteronomy', 'Josué', 'Joshua',
-      'Juízes', 'Judges', 'Rute', 'Ruth', '1 Samuel', '2 Samuel',
-      '1 Reis', '1 Kings', '2 Reis', '2 Kings', '1 Crônicas', '1 Chronicles',
-      '2 Crônicas', '2 Chronicles', 'Esdras', 'Ezra', 'Neemias', 'Nehemiah',
-      'Ester', 'Esther', 'Jó', 'Job', 'Salmos', 'Psalms', 'Provérbios',
-      'Proverbs', 'Eclesiastes', 'Ecclesiastes', 'Cantares', 'Song of Solomon',
-      'Isaías', 'Isaiah', 'Jeremias', 'Jeremiah', 'Lamentações', 'Lamentations',
-      'Ezequiel', 'Ezekiel', 'Daniel', 'Oseias', 'Hosea', 'Joel', 'Amós',
-      'Amos', 'Obadias', 'Obadiah', 'Jonas', 'Jonah', 'Miquéias', 'Micah',
-      'Naum', 'Nahum', 'Habacuque', 'Habakkuk', 'Sofonias', 'Zephaniah',
-      'Ageu', 'Haggai', 'Zacarias', 'Zechariah', 'Malaquias', 'Malachi',
+      'Gênesis',
+      'Genesis',
+      'Êxodo',
+      'Exodus',
+      'Levítico',
+      'Leviticus',
+      'Números',
+      'Numbers',
+      'Deuteronômio',
+      'Deuteronomy',
+      'Josué',
+      'Joshua',
+      'Juízes',
+      'Judges',
+      'Rute',
+      'Ruth',
+      '1 Samuel',
+      '2 Samuel',
+      '1 Reis',
+      '1 Kings',
+      '2 Reis',
+      '2 Kings',
+      '1 Crônicas',
+      '1 Chronicles',
+      '2 Crônicas',
+      '2 Chronicles',
+      'Esdras',
+      'Ezra',
+      'Neemias',
+      'Nehemiah',
+      'Ester',
+      'Esther',
+      'Jó',
+      'Job',
+      'Salmos',
+      'Psalms',
+      'Provérbios',
+      'Proverbs',
+      'Eclesiastes',
+      'Ecclesiastes',
+      'Cantares',
+      'Song of Solomon',
+      'Isaías',
+      'Isaiah',
+      'Jeremias',
+      'Jeremiah',
+      'Lamentações',
+      'Lamentations',
+      'Ezequiel',
+      'Ezekiel',
+      'Daniel',
+      'Oseias',
+      'Hosea',
+      'Joel',
+      'Amós',
+      'Amos',
+      'Obadias',
+      'Obadiah',
+      'Jonas',
+      'Jonah',
+      'Miquéias',
+      'Micah',
+      'Naum',
+      'Nahum',
+      'Habacuque',
+      'Habakkuk',
+      'Sofonias',
+      'Zephaniah',
+      'Ageu',
+      'Haggai',
+      'Zacarias',
+      'Zechariah',
+      'Malaquias',
+      'Malachi',
     ];
     return otBooks.any((b) => reference.startsWith(b));
   }
@@ -293,13 +539,15 @@ Respond ONLY with valid JSON:
     required String language,
     required bool isPremium,
   }) async {
-    final langInstruction =
-        language == 'pt' ? 'Respond in Portuguese.' : 'Respond in English.';
+    final langInstruction = language == 'pt'
+        ? 'Respond in Portuguese.'
+        : 'Respond in English.';
 
     final messages = [
       {
         'role': 'system',
-        'content': '''You are an expert preacher and biblical theologian. Create a complete sermon outline.
+        'content':
+            '''You are an expert preacher and biblical theologian. Create a complete sermon outline.
 $langInstruction
 Respond ONLY with valid JSON in this exact structure:
 {

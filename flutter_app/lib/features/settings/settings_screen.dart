@@ -14,7 +14,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
@@ -24,9 +23,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(isPT ? 'Definições' : 'Settings'),
-      ),
+      appBar: AppBar(title: Text(isPT ? 'Definições' : 'Settings')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -39,7 +36,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle:
                   '${auth.user!.plan == 'premium' ? 'Premium' : 'Plano Gratuito'} · ${auth.user!.name}',
               trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: auth.user!.isPremium
                       ? AppColors.secondary.withAlpha(30)
@@ -76,8 +76,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ],
 
-          const SizedBox(height: 24),
-
           // Language
           _SectionHeader(title: isPT ? 'Idioma' : 'Language'),
           _SettingsTile(
@@ -108,7 +106,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                Icon(Icons.dark_mode_outlined, color: AppColors.primary, size: 22),
+                Icon(
+                  Icons.dark_mode_outlined,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -126,7 +128,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         segments: [
                           ButtonSegment(
                             value: ThemeMode.light,
-                            icon: const Icon(Icons.light_mode_rounded, size: 16),
+                            icon: const Icon(
+                              Icons.light_mode_rounded,
+                              size: 16,
+                            ),
                             label: Text(isPT ? 'Claro' : 'Light'),
                           ),
                           ButtonSegment(
@@ -136,13 +141,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                           ButtonSegment(
                             value: ThemeMode.system,
-                            icon: const Icon(Icons.settings_suggest_rounded, size: 16),
+                            icon: const Icon(
+                              Icons.settings_suggest_rounded,
+                              size: 16,
+                            ),
                             label: Text(isPT ? 'Auto' : 'Auto'),
                           ),
                         ],
                         selected: {settings.themeMode},
-                        onSelectionChanged: (val) =>
-                            ref.read(settingsProvider.notifier).setThemeMode(val.first),
+                        onSelectionChanged: (val) => ref
+                            .read(settingsProvider.notifier)
+                            .setThemeMode(val.first),
                         expandedInsets: EdgeInsets.zero,
                         style: const ButtonStyle(
                           visualDensity: VisualDensity.compact,
@@ -168,20 +177,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 IconButton(
                   onPressed: settings.fontSize > 12
                       ? () => ref
-                          .read(settingsProvider.notifier)
-                          .setFontSize(settings.fontSize - 1)
+                            .read(settingsProvider.notifier)
+                            .setFontSize(settings.fontSize - 1)
                       : null,
                   icon: const Icon(Icons.remove_circle_outline),
                   color: AppColors.primary,
                 ),
-                Text('${settings.fontSize.toInt()}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 16)),
+                Text(
+                  '${settings.fontSize.toInt()}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
                 IconButton(
                   onPressed: settings.fontSize < 28
                       ? () => ref
-                          .read(settingsProvider.notifier)
-                          .setFontSize(settings.fontSize + 1)
+                            .read(settingsProvider.notifier)
+                            .setFontSize(settings.fontSize + 1)
                       : null,
                   icon: const Icon(Icons.add_circle_outline),
                   color: AppColors.primary,
@@ -212,8 +225,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         gradient: AppColors.primaryGradient,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.menu_book_rounded,
-                          color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.menu_book_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Column(
@@ -227,10 +243,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             color: context.ac.textPrimary,
                           ),
                         ),
-                        Text(
-                          'v1.0.0',
-                          style: theme.textTheme.bodySmall,
-                        ),
+                        Text('v1.0.0', style: theme.textTheme.bodySmall),
                       ],
                     ),
                   ],
@@ -251,21 +264,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text(
                   isPT
                       ? 'A Bíblia foi escrita originalmente em hebraico, aramaico e grego — línguas com estruturas e nuances muito diferentes das nossas. '
-                        'Palavras como hesed (amor leal em hebraico) ou agape (amor incondicional em grego) carregam profundidades que as traduções modernas nem sempre conseguem transmitir na totalidade.\n\n'
-                        'A isto acrescenta-se a distância histórica e cultural: costumes, figuras de linguagem e referências do Oriente Próximo antigo que eram óbvias para os leitores originais podem parecer estranhas hoje. '
-                        'E a Bíblia contém géneros literários muito distintos — poesia, profecia, lei, narrativa, carta — que pedem leituras diferentes.\n\n'
-                        'O Shalom Bible existe para tornar esse conhecimento acessível a qualquer pessoa. '
-                        'Sem impor uma denominação, sem julgamentos — apenas explicações honestas, contexto real e espaço para as tuas próprias perguntas.\n\n'
-                        'O nosso desejo é simples: que quem abre a Bíblia a compreenda melhor, '
-                        'e que esse entendimento traga mais liberdade e uma fé mais consciente.'
+                            'Palavras como hesed (amor leal em hebraico) ou agape (amor incondicional em grego) carregam profundidades que as traduções modernas nem sempre conseguem transmitir na totalidade.\n\n'
+                            'A isto acrescenta-se a distância histórica e cultural: costumes, figuras de linguagem e referências do Oriente Próximo antigo que eram óbvias para os leitores originais podem parecer estranhas hoje. '
+                            'E a Bíblia contém géneros literários muito distintos — poesia, profecia, lei, narrativa, carta — que pedem leituras diferentes.\n\n'
+                            'O Shalom Bible existe para tornar esse conhecimento acessível a qualquer pessoa. '
+                            'Sem impor uma denominação, sem julgamentos — apenas explicações honestas, contexto real e espaço para as tuas próprias perguntas.\n\n'
+                            'O nosso desejo é simples: que quem abre a Bíblia a compreenda melhor, '
+                            'e que esse entendimento traga mais liberdade e uma fé mais consciente.'
                       : 'The Bible was originally written in Hebrew, Aramaic, and Greek — languages with structures and nuances very different from our own. '
-                        'Words like hesed (loyal love in Hebrew) or agape (unconditional love in Greek) carry depths that modern translations don\'t always fully convey.\n\n'
-                        'Add to this the historical and cultural distance: customs, figures of speech, and references from the ancient Near East that were obvious to original readers can feel strange today. '
-                        'And the Bible contains very distinct literary genres — poetry, prophecy, law, narrative, letter — each requiring a different kind of reading.\n\n'
-                        'Shalom Bible exists to make this knowledge accessible to anyone. '
-                        'Without imposing a denomination, without judgment — just honest explanations, real context, and space for your own questions.\n\n'
-                        'Our desire is simple: that whoever opens the Bible understands it better, '
-                        'and that understanding brings more freedom and a more informed faith.',
+                            'Words like hesed (loyal love in Hebrew) or agape (unconditional love in Greek) carry depths that modern translations don\'t always fully convey.\n\n'
+                            'Add to this the historical and cultural distance: customs, figures of speech, and references from the ancient Near East that were obvious to original readers can feel strange today. '
+                            'And the Bible contains very distinct literary genres — poetry, prophecy, law, narrative, letter — each requiring a different kind of reading.\n\n'
+                            'Shalom Bible exists to make this knowledge accessible to anyone. '
+                            'Without imposing a denomination, without judgment — just honest explanations, real context, and space for your own questions.\n\n'
+                            'Our desire is simple: that whoever opens the Bible understands it better, '
+                            'and that understanding brings more freedom and a more informed faith.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     height: 1.7,
                     color: context.ac.textSecondary,
@@ -337,14 +350,19 @@ class _SettingsTile extends StatelessWidget {
           ),
         ),
         subtitle: subtitle != null
-            ? Text(subtitle!,
-                style: TextStyle(
-                    fontSize: 12, color: context.ac.textSecondary))
+            ? Text(
+                subtitle!,
+                style: TextStyle(fontSize: 12, color: context.ac.textSecondary),
+              )
             : null,
-        trailing: trailing ?? (onTap != null
-            ? Icon(Icons.chevron_right_rounded,
-                color: context.ac.textSecondary)
-            : null),
+        trailing:
+            trailing ??
+            (onTap != null
+                ? Icon(
+                    Icons.chevron_right_rounded,
+                    color: context.ac.textSecondary,
+                  )
+                : null),
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
