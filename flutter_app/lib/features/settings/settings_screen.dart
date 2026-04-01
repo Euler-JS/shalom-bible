@@ -91,30 +91,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _SettingsTile(
               icon: Icons.person_outline,
               title: auth.user!.email,
-              subtitle:
-                  '${auth.user!.plan == 'premium' ? 'Premium' : 'Plano Gratuito'} · ${auth.user!.name}',
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: auth.user!.isPremium
-                      ? AppColors.secondary.withAlpha(30)
-                      : AppColors.primary.withAlpha(20),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  auth.user!.plan == 'premium' ? 'Premium' : 'Free',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: auth.user!.isPremium
-                        ? const Color(0xFF8B6914)
-                        : AppColors.primary,
-                  ),
-                ),
-              ),
+              subtitle: auth.user!.name.isNotEmpty ? auth.user!.name : null,
             ),
             const SizedBox(height: 8),
             _SettingsTile(
@@ -160,44 +137,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _limitRow(
                   context,
                   label: isPT ? 'Busca por cenário' : 'Scenario search',
-                  free: isPT ? '5 / semana' : '5 / week',
-                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                  quota: isPT ? '5 / semana' : '5 / week',
                 ),
                 _limitRow(
                   context,
                   label: isPT ? 'Gerar esboço' : 'Generate outline',
-                  free: isPT ? '4 / mês' : '4 / month',
-                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                  quota: isPT ? '4 / mês' : '4 / month',
                 ),
                 _limitRow(
                   context,
                   label: isPT ? 'Explicar versículo' : 'Explain verse',
-                  free: isPT ? '20 / dia' : '20 / day',
-                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                  quota: isPT ? '20 / dia' : '20 / day',
                 ),
                 _limitRow(
                   context,
                   label: isPT ? 'Estudo de palavras' : 'Word study',
-                  free: isPT ? '10 / dia' : '10 / day',
-                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                  quota: isPT ? '10 / dia' : '10 / day',
                 ),
                 _limitRow(
                   context,
                   label: isPT ? 'Contexto histórico' : 'Historical context',
-                  free: isPT ? '15 / dia' : '15 / day',
-                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                  quota: isPT ? '15 / dia' : '15 / day',
                 ),
                 _limitRow(
                   context,
                   label: isPT ? 'Tutor bíblico' : 'Bible tutor',
-                  free: isPT ? '30 / dia' : '30 / day',
-                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                  quota: isPT ? '30 / dia' : '30 / day',
                 ),
                 _limitRow(
                   context,
                   label: isPT ? 'Biblioteca' : 'Library',
-                  free: isPT ? '5 sermões' : '5 sermons',
-                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                  quota: isPT ? '5 sermões' : '5 sermons',
                 ),
               ],
             ),
@@ -425,8 +395,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 Widget _limitRow(
   BuildContext context, {
   required String label,
-  required String free,
-  required String premium,
+  required String quota,
 }) {
   final ac = context.ac;
   return Padding(
@@ -442,14 +411,6 @@ Widget _limitRow(
             ),
           ),
         ),
-        Text(
-          free,
-          style: TextStyle(
-            color: AppColors.secondary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(width: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
@@ -457,7 +418,7 @@ Widget _limitRow(
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            premium,
+            quota,
             style: TextStyle(
               color: AppColors.primary,
               fontWeight: FontWeight.w600,

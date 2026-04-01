@@ -246,8 +246,8 @@ class _SermonGeneratorScreenState extends ConsumerState<SermonGeneratorScreen> {
                       const SizedBox(height: 8),
                       Text(
                         isPT
-                            ? 'Plano gratuito: 4 esboços por mês. Premium: ilimitado.'
-                            : 'Free plan: 4 outlines/month. Premium: unlimited.',
+                            ? 'Limite atual: 4 esboços por mês.'
+                            : 'Current limit: 4 outlines per month.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: context.ac.textSecondary,
                         ),

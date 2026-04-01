@@ -75,10 +75,10 @@ const buildLimitMessage = (rule, language) => {
       : 'monthly';
 
   if (isPT) {
-    return `Limite ${periodLabel} atingido para ${rule.labelPt} (${rule.freeLimit} pedidos). Actualiza para Premium.`;
+    return `Limite ${periodLabel} atingido para ${rule.labelPt} (${rule.freeLimit} pedidos). Tenta novamente quando o período renovar.`;
   }
 
-  return `${periodLabel} request limit reached for ${rule.labelEn} (${rule.freeLimit} requests). Upgrade to Premium.`;
+  return `${periodLabel} limit reached for ${rule.labelEn} (${rule.freeLimit} requests). Try again when the period resets.`;
 };
 
 const getSubject = (req) => {

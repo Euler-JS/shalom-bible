@@ -175,8 +175,8 @@ class _ScenarioSearchScreenState extends ConsumerState<ScenarioSearchScreen> {
                       const SizedBox(height: 8),
                       Text(
                         isPT
-                            ? '5 buscas por semana no plano gratuito · Premium ilimitado'
-                            : '5 searches per week on free plan · Unlimited on Premium',
+                            ? 'Limite atual: 5 buscas por semana.'
+                            : 'Current limit: 5 searches per week.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: context.ac.textSecondary,
                         ),
