@@ -44,7 +44,7 @@ class AILoadingWidget extends StatelessWidget {
 
   const AILoadingWidget({
     super.key,
-    this.message = 'A IA está a analisar...',
+    this.message = 'analisando...',
   });
 
   @override

@@ -76,7 +76,9 @@ class _SermonGeneratorScreenState extends ConsumerState<SermonGeneratorScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _error = 'Erro ao gerar esboço. Verifica a tua ligação ou o backend.';
+        _error = settings.language == 'pt'
+            ? 'Erro ao gerar esboço. Verifica tua ligação à internet.'
+            : 'Error generating outline. Check your internet connection.';
       });
     }
   }
@@ -241,6 +243,16 @@ class _SermonGeneratorScreenState extends ConsumerState<SermonGeneratorScreen> {
                           isLoading: _isLoading,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        isPT
+                            ? 'Plano gratuito: 4 esboços por mês. Premium: ilimitado.'
+                            : 'Free plan: 4 outlines/month. Premium: unlimited.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: context.ac.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ],
                   ),
                 ),
@@ -317,8 +329,8 @@ class _SermonGeneratorScreenState extends ConsumerState<SermonGeneratorScreen> {
                 child: _isLoading
                     ? AILoadingWidget(
                         message: isPT
-                            ? 'A IA está a preparar o teu esboço...'
-                            : 'AI is preparing your outline...',
+                            ? 'Preparando o teu esboço...'
+                            : 'Preparing your outline...',
                       )
                     : _error != null
                     ? _buildError()
@@ -370,8 +382,8 @@ class _SermonGeneratorScreenState extends ConsumerState<SermonGeneratorScreen> {
             const SizedBox(height: 16),
             Text(
               isPT
-                  ? 'Descreve o tema ou passagem\ne a IA gerará um esboço completo'
-                  : 'Describe the theme or passage\nand AI will generate a complete outline',
+                  ? 'Descreve o tema ou passagem\ne gerarei um esboço completo'
+                  : 'Describe the theme or passage\nand I will generate a complete outline',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: context.ac.textSecondary,

@@ -2,13 +2,13 @@ const AiUsage = require('../models/AiUsage');
 
 const FEATURE_RULES = {
   scenarioSearch: {
-    freeLimit: 3,
+    freeLimit: 5,
     periodType: 'week',
     labelPt: 'busca por cenário',
     labelEn: 'scenario search',
   },
   sermonGenerator: {
-    freeLimit: 2,
+    freeLimit: 4,
     periodType: 'month',
     labelPt: 'geração de esboço',
     labelEn: 'sermon outline generation',

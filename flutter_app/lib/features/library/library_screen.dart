@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_formatter.dart';
@@ -52,11 +53,32 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         _sermons = list;
         _loading = false;
       });
-    } catch (e) {
-      setState(() {
-        _loading = false;
-        _error = 'Erro ao carregar biblioteca.';
-      });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        // token expirou ou não existe; força login novamente
+        ref.read(authProvider.notifier).logout();
+        if (mounted) {
+          setState(() {
+            _sermons = [];
+            _loading = false;
+            _error = null;
+          });
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Erro ao carregar biblioteca.';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Erro ao carregar biblioteca.';
+        });
+      }
     }
   }
 

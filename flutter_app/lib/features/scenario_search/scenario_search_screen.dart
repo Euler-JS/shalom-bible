@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/bible_verse.dart';
@@ -73,11 +74,22 @@ class _ScenarioSearchScreenState extends ConsumerState<ScenarioSearchScreen> {
         _passages = enriched;
         _isLoading = false;
       });
-    } catch (e) {
+    } on DioException catch (e) {
       setState(() {
         _isLoading = false;
-        _error =
-            'Erro ao buscar passagens. Verifica a tua ligação ou o backend.';
+        final msg = e.response?.data is Map<String, dynamic>
+            ? (e.response!.data['message']?.toString() ??
+                  e.message ??
+                  'Erro ao buscar passagens.')
+            : (e.message ?? 'Erro ao buscar passagens.');
+        _error = msg;
+      });
+    } catch (_) {
+      setState(() {
+        _isLoading = false;
+        _error = settings.language == 'pt'
+            ? 'Erro ao buscar passagens. Verifica tua ligação à internet.'
+            : 'Error fetching passages. Check your internet connection.';
       });
     }
   }
@@ -128,8 +140,8 @@ class _ScenarioSearchScreenState extends ConsumerState<ScenarioSearchScreen> {
                       const SizedBox(height: 6),
                       Text(
                         isPT
-                            ? 'Descreve a tua situação e a IA encontra versículos relevantes'
-                            : 'Describe your situation and AI finds relevant verses',
+                            ? 'Descreve a tua situação e encontrarei versículos relevantes'
+                            : 'Describe your situation and I will find relevant verses',
                         style: theme.textTheme.bodySmall,
                       ),
                     ],
@@ -163,8 +175,8 @@ class _ScenarioSearchScreenState extends ConsumerState<ScenarioSearchScreen> {
                       const SizedBox(height: 8),
                       Text(
                         isPT
-                            ? '3 buscas por semana no plano gratuito'
-                            : '3 searches per week on the free plan',
+                            ? '5 buscas por semana no plano gratuito · Premium ilimitado'
+                            : '5 searches per week on free plan · Unlimited on Premium',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: context.ac.textSecondary,
                         ),
@@ -246,8 +258,8 @@ class _ScenarioSearchScreenState extends ConsumerState<ScenarioSearchScreen> {
                 child: _isLoading
                     ? AILoadingWidget(
                         message: isPT
-                            ? 'A IA está a buscar versículos...'
-                            : 'AI is searching for verses...',
+                            ? 'Buscando versículos...'
+                            : 'Searching for verses...',
                       )
                     : _error != null
                     ? _buildError()
@@ -299,8 +311,8 @@ class _ScenarioSearchScreenState extends ConsumerState<ScenarioSearchScreen> {
             const SizedBox(height: 16),
             Text(
               isPT
-                  ? 'Escreve o que estás a sentir\ne a IA encontrará os versículos certos'
-                  : 'Write what you\'re feeling\nand AI will find the right verses',
+                  ? 'Escreve o que estás a sentir\ne eu encontrarei os versículos certos'
+                  : 'Write what you\'re feeling\nand I will find the right verses',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: context.ac.textSecondary,

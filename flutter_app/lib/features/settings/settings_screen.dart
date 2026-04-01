@@ -144,6 +144,67 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ],
 
+          const SizedBox(height: 24),
+
+          // Limits
+          _SectionHeader(title: isPT ? 'Limites do Plano' : 'Plan Limits'),
+          Container(
+            decoration: BoxDecoration(
+              color: context.ac.cardBackground,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: context.ac.cardBorder),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _limitRow(
+                  context,
+                  label: isPT ? 'Busca por cenário' : 'Scenario search',
+                  free: isPT ? '5 / semana' : '5 / week',
+                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                ),
+                _limitRow(
+                  context,
+                  label: isPT ? 'Gerar esboço' : 'Generate outline',
+                  free: isPT ? '4 / mês' : '4 / month',
+                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                ),
+                _limitRow(
+                  context,
+                  label: isPT ? 'Explicar versículo' : 'Explain verse',
+                  free: isPT ? '20 / dia' : '20 / day',
+                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                ),
+                _limitRow(
+                  context,
+                  label: isPT ? 'Estudo de palavras' : 'Word study',
+                  free: isPT ? '10 / dia' : '10 / day',
+                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                ),
+                _limitRow(
+                  context,
+                  label: isPT ? 'Contexto histórico' : 'Historical context',
+                  free: isPT ? '15 / dia' : '15 / day',
+                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                ),
+                _limitRow(
+                  context,
+                  label: isPT ? 'Tutor bíblico' : 'Bible tutor',
+                  free: isPT ? '30 / dia' : '30 / day',
+                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                ),
+                _limitRow(
+                  context,
+                  label: isPT ? 'Biblioteca' : 'Library',
+                  free: isPT ? '5 sermões' : '5 sermons',
+                  premium: isPT ? 'Ilimitado' : 'Unlimited',
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           // Language
           _SectionHeader(title: isPT ? 'Idioma' : 'Language'),
           _SettingsTile(
@@ -359,6 +420,53 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+}
+
+Widget _limitRow(
+  BuildContext context, {
+  required String label,
+  required String free,
+  required String premium,
+}) {
+  final ac = context.ac;
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: ac.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Text(
+          free,
+          style: TextStyle(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withAlpha(20),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            premium,
+            style: TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _SectionHeader extends StatelessWidget {
