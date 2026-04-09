@@ -48,11 +48,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 
     // Try to keep same book position when switching translations
     final currentIdx = _books.indexOf(_selectedBook ?? '');
-    final newBooks = books.isNotEmpty
-        ? books
-        : (translation == 'ARC'
-              ? AppConstants.allBooksARC()
-              : AppConstants.allBooksKJV());
+    final newBooks = books.isNotEmpty ? books : AppConstants.allBooksARA();
 
     final newBook = (currentIdx > 0 && currentIdx < newBooks.length)
         ? newBooks[currentIdx]
@@ -459,10 +455,12 @@ class _BibleHeader extends StatelessWidget {
               children: [
                 SegmentedButton<String>(
                   segments: const [
-                    ButtonSegment(value: 'ARC', label: Text('ARC')),
-                    ButtonSegment(value: 'KJV', label: Text('KJV')),
+                    ButtonSegment(
+                      value: AppConstants.translationARA,
+                      label: Text(AppConstants.translationARA),
+                    ),
                   ],
-                  selected: {translation},
+                  selected: {AppConstants.translationARA},
                   onSelectionChanged: (val) => onTranslationChanged(val.first),
                   style: ButtonStyle(
                     visualDensity: VisualDensity.compact,

@@ -65,7 +65,7 @@ class BibleDatabase {
   }
 
   Database? _getTranslationDb(String translation) {
-    if (translation == 'ARC') return _arcDb;
+    if (translation == 'ARA' || translation == 'ARC') return _arcDb;
     if (translation == 'KJV') return _kjvDb;
     return null;
   }

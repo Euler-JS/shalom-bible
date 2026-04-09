@@ -48,6 +48,8 @@ GEMINI_MODEL_FREE=gemini-2.5-flash
 GEMINI_MODEL_PREMIUM=gemini-2.5-pro
 OPENAI_MODEL_FREE=gpt-4.1-mini
 OPENAI_MODEL_PREMIUM=gpt-4.1
+POLICY_URL=https://yourdomain.com/privacy
+TERMS_URL=https://yourdomain.com/terms
 ```
 
 6. Set the health check path to `/health`

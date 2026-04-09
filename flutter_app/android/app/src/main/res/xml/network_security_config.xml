@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">sslip.io</domain>
+        <domain includeSubdomains="true">194.163.145.253.sslip.io</domain>
+        <domain includeSubdomains="true">o8w0k4w04w80wc0cwwg8k0cw.194.163.145.253.sslip.io</domain>
+        <domain includeSubdomains="false">194.163.145.253</domain>
+    </domain-config>
+
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

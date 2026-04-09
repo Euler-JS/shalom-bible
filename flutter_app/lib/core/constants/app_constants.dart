@@ -14,8 +14,7 @@ class AppConstants {
   static const String fontSizeKey = 'bible_font_size';
 
   // Bible translations
-  static const String translationARC = 'ARC';
-  static const String translationKJV = 'KJV';
+  static const String translationARA = 'ARA';
 
   // Bible asset paths
   static const String arcDbPath = 'assets/bible/arc.db';
@@ -173,12 +172,8 @@ class AppConstants {
     'Revelation',
   ];
 
-  static List<String> allBooksARC() => [
+  static List<String> allBooksARA() => [
     ...oldTestamentBooks,
     ...newTestamentBooks,
-  ];
-  static List<String> allBooksKJV() => [
-    ...oldTestamentBooksKJV,
-    ...newTestamentBooksKJV,
   ];
 }
