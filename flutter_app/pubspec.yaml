@@ -68,3 +68,5 @@ flutter:
     - assets/bible/
     - assets/strongs/
     - assets/images/
+    - bibles_json/pt/
+    - bibles_json/en/

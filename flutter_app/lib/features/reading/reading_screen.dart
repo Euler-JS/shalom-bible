@@ -48,7 +48,11 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 
     // Try to keep same book position when switching translations
     final currentIdx = _books.indexOf(_selectedBook ?? '');
-    final newBooks = books.isNotEmpty ? books : AppConstants.allBooksARA();
+    final newBooks = books.isNotEmpty
+        ? books
+        : AppConstants.allBooksForLanguage(
+            AppConstants.languageForTranslation(translation),
+          );
 
     final newBook = (currentIdx > 0 && currentIdx < newBooks.length)
         ? newBooks[currentIdx]
@@ -185,6 +189,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final settings = ref.watch(settingsProvider);
     final isPT = settings.language == 'pt';
     final theme = Theme.of(context);
+    final availableTranslations =
+      BibleDatabase.instance.getAvailableTranslations(settings.language);
 
     // React to translation changes (e.g. from settings screen or prefs load)
     ref.listen<SettingsState>(settingsProvider, (prev, next) {
@@ -204,6 +210,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
             selectedBook: _selectedBook ?? '',
             selectedChapter: _selectedChapter,
             totalChapters: _totalChapters,
+            availableTranslations: availableTranslations,
             translation: settings.translation,
             isPT: isPT,
             canInteract: _selectedBook != null,
@@ -246,8 +253,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                         const SizedBox(height: 12),
                         Text(
                           isPT
-                              ? 'Base de dados da Bíblia não encontrada.\nAdiciona os arquivos .db em assets/bible/'
-                              : 'Bible database not found.\nAdd .db files to assets/bible/',
+                              ? 'Nenhum conteúdo bíblico foi carregado para esta versão.'
+                              : 'No Bible content was loaded for this translation.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: context.ac.textSecondary,
@@ -335,6 +342,7 @@ class _BibleHeader extends StatelessWidget {
   final String selectedBook;
   final int selectedChapter;
   final int totalChapters;
+  final List<String> availableTranslations;
   final String translation;
   final bool isPT;
   final bool canInteract;
@@ -349,6 +357,7 @@ class _BibleHeader extends StatelessWidget {
     required this.selectedBook,
     required this.selectedChapter,
     required this.totalChapters,
+    required this.availableTranslations,
     required this.translation,
     required this.isPT,
     required this.canInteract,
@@ -359,9 +368,36 @@ class _BibleHeader extends StatelessWidget {
     required this.onHistory,
   });
 
+  List<String> _orderedTranslations() {
+    final ordered = List<String>.from(availableTranslations);
+    final selectedIndex = ordered.indexOf(translation);
+    if (selectedIndex > 0) {
+      final selected = ordered.removeAt(selectedIndex);
+      ordered.insert(0, selected);
+    }
+    return ordered;
+  }
+
+  void _showTranslationPicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _TranslationPickerSheet(
+        translations: availableTranslations,
+        selectedTranslation: translation,
+        isPT: isPT,
+        onSelected: onTranslationChanged,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ac = context.ac;
+    final orderedTranslations = _orderedTranslations();
+    final visibleTranslations = orderedTranslations.take(2).toList();
+    final hasMoreTranslations = orderedTranslations.length > 2;
+
     return SafeArea(
       bottom: false,
       child: Container(
@@ -401,7 +437,10 @@ class _BibleHeader extends StatelessWidget {
                             .map(
                               (b) => DropdownMenuItem(
                                 value: b,
-                                child: Text(b, overflow: TextOverflow.ellipsis),
+                                child: Text(
+                                  b,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             )
                             .toList(),
@@ -453,26 +492,44 @@ class _BibleHeader extends StatelessWidget {
             // Row 2: Translation toggle + action icons
             Row(
               children: [
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                      value: AppConstants.translationARA,
-                      label: Text(AppConstants.translationARA),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
                     ),
-                  ],
-                  selected: {AppConstants.translationARA},
-                  onSelectionChanged: (val) => onTranslationChanged(val.first),
-                  style: ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                    textStyle: WidgetStateProperty.all(
-                      const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                    decoration: BoxDecoration(
+                      color: ac.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: ac.cardBorder.withAlpha(160)),
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          ...visibleTranslations.map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: _TranslationChip(
+                                label: AppConstants.translationLabel(item),
+                                selected: item == translation,
+                                onTap: () => onTranslationChanged(item),
+                              ),
+                            ),
+                          ),
+                          if (hasMoreTranslations)
+                            _TranslationChip(
+                              label: isPT ? 'Mais' : 'More',
+                              selected: false,
+                              icon: Icons.more_horiz_rounded,
+                              onTap: () => _showTranslationPicker(context),
+                            ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 _ActionPill(
                   icon: Icons.history_edu_rounded,
                   label: isPT ? 'Contexto' : 'Context',
@@ -485,6 +542,160 @@ class _BibleHeader extends StatelessWidget {
                   onTap: canInteract ? onChat : null,
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TranslationChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final IconData? icon;
+  final VoidCallback onTap;
+
+  const _TranslationChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = selected
+        ? AppColors.primary.withAlpha(70)
+        : Colors.transparent;
+    final backgroundColor = selected
+        ? AppColors.primary.withAlpha(14)
+        : Colors.transparent;
+    final textColor = selected
+        ? AppColors.primary
+        : context.ac.textSecondary;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 15, color: textColor),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TranslationPickerSheet extends StatelessWidget {
+  final List<String> translations;
+  final String selectedTranslation;
+  final bool isPT;
+  final ValueChanged<String> onSelected;
+
+  const _TranslationPickerSheet({
+    required this.translations,
+    required this.selectedTranslation,
+    required this.isPT,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ac = context.ac;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: ac.cardBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: ac.cardBorder,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Text(
+                  isPT ? 'Versões bíblicas' : 'Bible versions',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: ac.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...translations.map(
+              (item) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 42,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withAlpha(12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    AppConstants.translationLabel(item),
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  AppConstants.translationLabel(item),
+                  style: TextStyle(
+                    color: ac.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                trailing: item == selectedTranslation
+                    ? const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primary,
+                      )
+                    : null,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  onSelected(item);
+                },
+              ),
             ),
           ],
         ),

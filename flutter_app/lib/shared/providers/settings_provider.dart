@@ -11,7 +11,7 @@ class SettingsState {
   final ThemeMode themeMode;
 
   const SettingsState({
-    this.translation = AppConstants.translationARA,
+    this.translation = AppConstants.defaultPortugueseTranslation,
     this.language = 'pt',
     this.fontSize = 17.0,
     this.onboardingDone = false,
@@ -40,21 +40,35 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _load();
   }
 
-  String _normalizeTranslation(String? translation) {
-    if (translation == AppConstants.translationARA || translation == 'ARC') {
-      return AppConstants.translationARA;
+  String _normalizeTranslation(String? translation, String language) {
+    if (translation == null || translation.isEmpty) {
+      return AppConstants.defaultTranslationForLanguage(language);
     }
-    return AppConstants.translationARA;
+
+    if (translation == 'ARC' || translation == 'ARA') {
+      return AppConstants.defaultPortugueseTranslation;
+    }
+
+    if (translation == 'KJV') {
+      return AppConstants.defaultEnglishTranslation;
+    }
+
+    final normalized = translation.toLowerCase();
+    return AppConstants.languageForTranslation(normalized) == language
+        ? normalized
+        : AppConstants.defaultTranslationForLanguage(language);
   }
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final themeModeIndex = prefs.getInt('theme_mode') ?? 0;
+    final language = prefs.getString(AppConstants.selectedLanguageKey) ?? 'pt';
     state = state.copyWith(
       translation: _normalizeTranslation(
         prefs.getString(AppConstants.selectedTranslationKey),
+        language,
       ),
-      language: prefs.getString(AppConstants.selectedLanguageKey) ?? 'pt',
+      language: language,
       fontSize: prefs.getDouble(AppConstants.fontSizeKey) ?? 17.0,
       onboardingDone: prefs.getBool(AppConstants.onboardingDoneKey) ?? false,
       themeMode: ThemeMode.values[themeModeIndex.clamp(0, 2)],
@@ -62,7 +76,10 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   Future<void> setTranslation(String translation) async {
-    final normalizedTranslation = _normalizeTranslation(translation);
+    final normalizedTranslation = _normalizeTranslation(
+      translation,
+      state.language,
+    );
     state = state.copyWith(translation: normalizedTranslation);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -72,7 +89,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   Future<void> setLanguage(String language) async {
-    final translation = AppConstants.translationARA;
+    final translation = AppConstants.defaultTranslationForLanguage(language);
     state = state.copyWith(language: language, translation: translation);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.selectedLanguageKey, language);

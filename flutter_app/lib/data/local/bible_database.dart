@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import '../../core/constants/app_constants.dart';
 import '../models/bible_verse.dart';
 
 /// BibleDatabase manages SQLite databases for Bible translations and Strong's Concordance.
@@ -26,8 +29,8 @@ import '../models/bible_verse.dart';
 /// );
 class BibleDatabase {
   static BibleDatabase? _instance;
-  Database? _arcDb;
-  Database? _kjvDb;
+  final Map<String, Database> _translationDbs = {};
+  final Map<String, List<String>> _translationsByLanguage = {};
   Database? _strongsHebDb;
   Database? _strongsGrkDb;
 
@@ -36,6 +39,130 @@ class BibleDatabase {
   static BibleDatabase get instance {
     _instance ??= BibleDatabase._();
     return _instance!;
+  }
+
+  Future<void> _ensureBibleSchema(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS verses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        book TEXT NOT NULL,
+        book_number INTEGER NOT NULL,
+        chapter INTEGER NOT NULL,
+        verse INTEGER NOT NULL,
+        text TEXT NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_bk_ch ON verses(book, chapter)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_bk_ch_v ON verses(book, chapter, verse)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_bknum ON verses(book_number)',
+    );
+  }
+
+  Future<void> _importJsonBible({
+    required Database db,
+    required String assetPath,
+    required String language,
+  }) async {
+    final rawText = await rootBundle.loadString(assetPath);
+    final text = rawText.replaceFirst('\uFEFF', '');
+    final data = jsonDecode(text) as List<dynamic>;
+    final books = AppConstants.allBooksForLanguage(language);
+
+    await db.transaction((txn) async {
+      await txn.delete('verses');
+
+      var batch = txn.batch();
+      var pending = 0;
+
+      Future<void> flush() async {
+        if (pending == 0) return;
+        await batch.commit(noResult: true);
+        batch = txn.batch();
+        pending = 0;
+      }
+
+      for (var bookIndex = 0; bookIndex < data.length; bookIndex++) {
+        final bookData = data[bookIndex] as Map<String, dynamic>;
+        final chapters = (bookData['chapters'] as List<dynamic>? ?? const []);
+        final bookName = bookIndex < books.length
+            ? books[bookIndex]
+            : 'Book ${bookIndex + 1}';
+
+        for (var chapterIndex = 0; chapterIndex < chapters.length; chapterIndex++) {
+          final verses = chapters[chapterIndex] as List<dynamic>? ?? const [];
+          for (var verseIndex = 0; verseIndex < verses.length; verseIndex++) {
+            final textValue = verses[verseIndex].toString().trim();
+            if (textValue.isEmpty) continue;
+
+            batch.insert('verses', {
+              'book': bookName,
+              'book_number': bookIndex + 1,
+              'chapter': chapterIndex + 1,
+              'verse': verseIndex + 1,
+              'text': textValue,
+            });
+            pending++;
+
+            if (pending >= 1000) {
+              await flush();
+            }
+          }
+        }
+      }
+
+      await flush();
+    });
+  }
+
+  Future<Database> _openOrCreateJsonDb({
+    required String assetPath,
+    required String translation,
+    required String language,
+  }) async {
+    final dbsPath = await getDatabasesPath();
+    final path = join(dbsPath, '$translation.db');
+    final db = await openDatabase(path);
+    await _ensureBibleSchema(db);
+
+    final count = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM verses'),
+    ) ?? 0;
+
+    if (count == 0) {
+      await _importJsonBible(db: db, assetPath: assetPath, language: language);
+    }
+
+    return db;
+  }
+
+  Future<void> _initTranslationDbs() async {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final bibleJsonAssets = manifest.listAssets()
+        .where(
+          (path) => path.startsWith('bibles_json/') && path.endsWith('.json'),
+        )
+        .toList()
+      ..sort();
+
+    _translationDbs.clear();
+    _translationsByLanguage.clear();
+
+    for (final assetPath in bibleJsonAssets) {
+      final translation = basenameWithoutExtension(assetPath).toLowerCase();
+      final language = AppConstants.languageForTranslation(translation);
+      final db = await _openOrCreateJsonDb(
+        assetPath: assetPath,
+        translation: translation,
+        language: language,
+      );
+      _translationDbs[translation] = db;
+      _translationsByLanguage.putIfAbsent(language, () => []).add(translation);
+    }
   }
 
   Future<Database> _openAssetDb(String assetPath, String fileName) async {
@@ -53,21 +180,27 @@ class BibleDatabase {
 
   Future<void> init() async {
     try {
-      _arcDb = await _openAssetDb('assets/bible/arc.db', 'arc.db');
-      _kjvDb = await _openAssetDb('assets/bible/kjv.db', 'kjv.db');
+      await _initTranslationDbs();
       _strongsHebDb = await _openAssetDb(
           'assets/strongs/strongs_hebrew.db', 'strongs_hebrew.db');
       _strongsGrkDb = await _openAssetDb(
           'assets/strongs/strongs_greek.db', 'strongs_greek.db');
     } catch (e) {
-      // Databases may not exist yet during development — handled gracefully
+      debugPrint('BibleDatabase.init failed: $e');
     }
   }
 
   Database? _getTranslationDb(String translation) {
-    if (translation == 'ARA' || translation == 'ARC') return _arcDb;
-    if (translation == 'KJV') return _kjvDb;
-    return null;
+    return _translationDbs[translation.toLowerCase()];
+  }
+
+  List<String> getAvailableTranslations(String language) {
+    final translations = _translationsByLanguage[language] ?? const [];
+    return List.unmodifiable(
+      translations.isNotEmpty
+          ? translations
+          : [AppConstants.defaultTranslationForLanguage(language)],
+    );
   }
 
   Future<List<BibleVerse>> getChapter({

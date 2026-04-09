@@ -63,3 +63,5 @@ app.*.map.json
 
 /flutter_app/lib/core/constants/app_constants.dart
 /lib/core/constants/app_constants.dart
+/bibles_json/
+/flutter_app/bibles_json/

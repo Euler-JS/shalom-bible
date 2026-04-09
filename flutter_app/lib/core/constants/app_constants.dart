@@ -14,7 +14,8 @@ class AppConstants {
   static const String fontSizeKey = 'bible_font_size';
 
   // Bible translations
-  static const String translationARA = 'ARA';
+  static const String defaultPortugueseTranslation = 'pt_aa';
+  static const String defaultEnglishTranslation = 'en_kjv';
 
   // Bible asset paths
   static const String arcDbPath = 'assets/bible/arc.db';
@@ -172,8 +173,24 @@ class AppConstants {
     'Revelation',
   ];
 
-  static List<String> allBooksARA() => [
-    ...oldTestamentBooks,
-    ...newTestamentBooks,
-  ];
+  static List<String> allBooksForLanguage(String language) =>
+      language == 'en'
+      ? [...oldTestamentBooksKJV, ...newTestamentBooksKJV]
+      : [...oldTestamentBooks, ...newTestamentBooks];
+
+  static String defaultTranslationForLanguage(String language) =>
+      language == 'en'
+      ? defaultEnglishTranslation
+      : defaultPortugueseTranslation;
+
+  static String languageForTranslation(String translation) =>
+      translation.startsWith('en_') ? 'en' : 'pt';
+
+  static String translationLabel(String translation) {
+    final separatorIndex = translation.indexOf('_');
+    if (separatorIndex == -1 || separatorIndex == translation.length - 1) {
+      return translation.toUpperCase();
+    }
+    return translation.substring(separatorIndex + 1).toUpperCase();
+  }
 }
