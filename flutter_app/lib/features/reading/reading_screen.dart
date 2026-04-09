@@ -25,8 +25,10 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   int _selectedChapter = 1;
   int _totalChapters = 1;
   List<BibleVerse> _verses = [];
+  List<BibleVerse> _compareVerses = [];
   bool _loading = false;
   String? _currentTranslation;
+  String? _compareTranslation;
 
   // Multi-verse selection
   bool _selectionMode = false;
@@ -70,6 +72,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     if (!mounted) return;
     setState(() => _loading = true);
 
+    final selectedBookNumber = (_books.indexOf(_selectedBook!) + 1).clamp(1, 66);
+
     final count = await BibleDatabase.instance.getChapterCount(
       translation: translation,
       book: _selectedBook!,
@@ -79,13 +83,55 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       book: _selectedBook!,
       chapter: _selectedChapter,
     );
+    final compareTranslation = _compareTranslation;
+    final compareVerses = compareTranslation != null
+        ? await BibleDatabase.instance.getChapterByBookNumber(
+            translation: compareTranslation,
+            bookNumber: selectedBookNumber,
+            chapter: _selectedChapter,
+          )
+        : <BibleVerse>[];
 
     if (!mounted) return;
     setState(() {
       _totalChapters = count > 0 ? count : 150;
       _verses = verses;
+      _compareVerses = compareVerses;
       _loading = false;
     });
+  }
+
+  Future<void> _setCompareTranslation(String? translation) async {
+    if (_compareTranslation == translation) return;
+    _exitSelectionMode();
+    setState(() {
+      _compareTranslation = translation;
+      if (translation == null) {
+        _compareVerses = [];
+      }
+    });
+    await _loadChapter(ref.read(settingsProvider).translation);
+  }
+
+  void _showComparePicker(List<String> availableTranslations) {
+    final options = availableTranslations
+        .where((item) => item != ref.read(settingsProvider).translation)
+        .toList();
+    final isPT = ref.read(settingsProvider).language == 'pt';
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _CompareTranslationSheet(
+        options: options,
+        selectedTranslation: _compareTranslation,
+        isPT: isPT,
+        onSelected: (translation) {
+          Navigator.of(ctx).pop();
+          _setCompareTranslation(translation);
+        },
+      ),
+    );
   }
 
   void _enterSelectionMode(int index) {
@@ -191,10 +237,15 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final theme = Theme.of(context);
     final availableTranslations =
       BibleDatabase.instance.getAvailableTranslations(settings.language);
+    final compareTranslations = BibleDatabase.instance.getAllAvailableTranslations();
 
     // React to translation changes (e.g. from settings screen or prefs load)
     ref.listen<SettingsState>(settingsProvider, (prev, next) {
       if (prev?.translation != next.translation) {
+        if (_compareTranslation == next.translation) {
+          _compareTranslation = null;
+          _compareVerses = [];
+        }
         _currentTranslation = next.translation;
         _loadBooks(next.translation);
       }
@@ -230,6 +281,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
             onTranslationChanged: (val) {
               ref.read(settingsProvider.notifier).setTranslation(val);
             },
+            compareTranslation: _compareTranslation,
+            onCompareTap: () => _showComparePicker(compareTranslations),
             onChat: _showChat,
             onHistory: _showHistoricalContext,
           ),
@@ -263,6 +316,18 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                       ],
                     ),
                   )
+                : _compareTranslation != null
+                ? _CompareChapterView(
+                    primaryVerses: _verses,
+                    secondaryVerses: _compareVerses,
+                    primaryLabel: AppConstants.translationLabel(
+                      settings.translation,
+                    ),
+                    secondaryLabel: AppConstants.translationLabel(
+                      _compareTranslation!,
+                    ),
+                    fontSize: settings.fontSize,
+                  )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                     keyboardDismissBehavior:
@@ -285,7 +350,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
           ),
 
           // Multi-select action bar
-          if (_selectionMode)
+          if (_selectionMode && _compareTranslation == null)
             _MultiSelectBar(
               count: _selectedIndices.length,
               language: settings.language,
@@ -344,11 +409,13 @@ class _BibleHeader extends StatelessWidget {
   final int totalChapters;
   final List<String> availableTranslations;
   final String translation;
+  final String? compareTranslation;
   final bool isPT;
   final bool canInteract;
   final ValueChanged<String> onBookChanged;
   final ValueChanged<int> onChapterChanged;
   final ValueChanged<String> onTranslationChanged;
+  final VoidCallback onCompareTap;
   final VoidCallback onChat;
   final VoidCallback onHistory;
 
@@ -359,11 +426,13 @@ class _BibleHeader extends StatelessWidget {
     required this.totalChapters,
     required this.availableTranslations,
     required this.translation,
+    required this.compareTranslation,
     required this.isPT,
     required this.canInteract,
     required this.onBookChanged,
     required this.onChapterChanged,
     required this.onTranslationChanged,
+    required this.onCompareTap,
     required this.onChat,
     required this.onHistory,
   });
@@ -395,8 +464,8 @@ class _BibleHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final ac = context.ac;
     final orderedTranslations = _orderedTranslations();
-    final visibleTranslations = orderedTranslations.take(2).toList();
-    final hasMoreTranslations = orderedTranslations.length > 2;
+    final activeTranslation = orderedTranslations.first;
+    final hasOtherTranslations = orderedTranslations.length > 1;
 
     return SafeArea(
       bottom: false,
@@ -507,27 +576,36 @@ class _BibleHeader extends StatelessWidget {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          ...visibleTranslations.map(
-                            (item) => Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: _TranslationChip(
-                                label: AppConstants.translationLabel(item),
-                                selected: item == translation,
-                                onTap: () => onTranslationChanged(item),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: _TranslationChip(
+                              label: AppConstants.translationLabel(
+                                activeTranslation,
                               ),
+                              selected: true,
+                              onTap: () => _showTranslationPicker(context),
                             ),
                           ),
-                          if (hasMoreTranslations)
+                          if (hasOtherTranslations)
                             _TranslationChip(
-                              label: isPT ? 'Mais' : 'More',
+                              label: isPT ? 'Escolher outra' : 'Choose another',
                               selected: false,
-                              icon: Icons.more_horiz_rounded,
+                              icon: Icons.add_rounded,
                               onTap: () => _showTranslationPicker(context),
                             ),
                         ],
                       ),
                     ),
                   ),
+                ),
+                const SizedBox(width: 8),
+                _ActionPill(
+                  icon: Icons.compare_arrows_rounded,
+                  label: compareTranslation != null
+                      ? AppConstants.translationLabel(compareTranslation!)
+                      : (isPT ? 'Comparar' : 'Compare'),
+                  onTap: canInteract ? onCompareTap : null,
+                  highlighted: compareTranslation != null,
                 ),
                 const SizedBox(width: 8),
                 _ActionPill(
@@ -729,13 +807,21 @@ class _ActionPill extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final bool highlighted;
 
-  const _ActionPill({required this.icon, required this.label, this.onTap});
+  const _ActionPill({
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.highlighted = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
-    final color = enabled
+    final color = highlighted
+        ? AppColors.primary
+        : enabled
         ? AppColors.primary
         : context.ac.textSecondary.withAlpha(80);
     return GestureDetector(
@@ -743,10 +829,16 @@ class _ActionPill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: enabled ? AppColors.primary.withAlpha(14) : context.ac.surface,
+          color: highlighted
+              ? AppColors.primary.withAlpha(18)
+              : enabled
+              ? AppColors.primary.withAlpha(14)
+              : context.ac.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: enabled
+            color: highlighted
+                ? AppColors.primary.withAlpha(90)
+                : enabled
                 ? AppColors.primary.withAlpha(60)
                 : context.ac.cardBorder,
           ),
@@ -767,6 +859,294 @@ class _ActionPill extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _CompareTranslationSheet extends StatelessWidget {
+  final List<String> options;
+  final String? selectedTranslation;
+  final bool isPT;
+  final ValueChanged<String?> onSelected;
+
+  const _CompareTranslationSheet({
+    required this.options,
+    required this.selectedTranslation,
+    required this.isPT,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ac = context.ac;
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: ac.cardBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: ac.cardBorder,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                isPT ? 'Comparar com...' : 'Compare with...',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: ac.textPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (selectedTranslation != null)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.close_rounded,
+                  color: AppColors.primary,
+                ),
+                title: Text(
+                  isPT ? 'Desativar comparação' : 'Disable comparison',
+                  style: TextStyle(
+                    color: ac.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onTap: () => onSelected(null),
+              ),
+            ...options.map(
+              (item) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 42,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withAlpha(12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    AppConstants.translationLabel(item),
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  AppConstants.translationLabel(item),
+                  style: TextStyle(
+                    color: ac.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                trailing: item == selectedTranslation
+                    ? const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primary,
+                      )
+                    : null,
+                onTap: () => onSelected(item),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompareChapterView extends StatelessWidget {
+  final List<BibleVerse> primaryVerses;
+  final List<BibleVerse> secondaryVerses;
+  final String primaryLabel;
+  final String secondaryLabel;
+  final double fontSize;
+
+  const _CompareChapterView({
+    required this.primaryVerses,
+    required this.secondaryVerses,
+    required this.primaryLabel,
+    required this.secondaryLabel,
+    required this.fontSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final secondaryByVerse = {
+      for (final verse in secondaryVerses) verse.verse: verse,
+    };
+    final allVerseNumbers = <int>{
+      ...primaryVerses.map((verse) => verse.verse),
+      ...secondaryVerses.map((verse) => verse.verse),
+    }.toList()
+      ..sort();
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      itemCount: allVerseNumbers.length,
+      itemBuilder: (context, index) {
+        final verseNumber = allVerseNumbers[index];
+        final primary = primaryVerses
+            .cast<BibleVerse?>()
+            .firstWhere((verse) => verse?.verse == verseNumber, orElse: () => null);
+        final secondary = secondaryByVerse[verseNumber];
+
+        return _CompareVerseRow(
+          verseNumber: verseNumber,
+          primaryVerse: primary,
+          secondaryVerse: secondary,
+          primaryLabel: primaryLabel,
+          secondaryLabel: secondaryLabel,
+          fontSize: fontSize,
+        );
+      },
+    );
+  }
+}
+
+class _CompareVerseRow extends StatelessWidget {
+  final int verseNumber;
+  final BibleVerse? primaryVerse;
+  final BibleVerse? secondaryVerse;
+  final String primaryLabel;
+  final String secondaryLabel;
+  final double fontSize;
+
+  const _CompareVerseRow({
+    required this.verseNumber,
+    required this.primaryVerse,
+    required this.secondaryVerse,
+    required this.primaryLabel,
+    required this.secondaryLabel,
+    required this.fontSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ac = context.ac;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: ac.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ac.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$verseNumber',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.secondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _CompareVersionBlock(
+                    label: primaryLabel,
+                    text: primaryVerse?.text ?? '—',
+                    fontSize: fontSize,
+                    highlighted: true,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  color: ac.cardBorder,
+                ),
+                Expanded(
+                  child: _CompareVersionBlock(
+                    label: secondaryLabel,
+                    text: secondaryVerse?.text ?? '—',
+                    fontSize: fontSize,
+                    highlighted: false,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompareVersionBlock extends StatelessWidget {
+  final String label;
+  final String text;
+  final double fontSize;
+  final bool highlighted;
+
+  const _CompareVersionBlock({
+    required this.label,
+    required this.text,
+    required this.fontSize,
+    required this.highlighted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ac = context.ac;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: highlighted
+                    ? AppColors.primary.withAlpha(12)
+                    : ac.cardBackground,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: highlighted
+                      ? AppColors.primary.withAlpha(40)
+                      : ac.cardBorder.withAlpha(160),
+                ),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: highlighted ? AppColors.primary : ac.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          text,
+          style: GoogleFonts.merriweather(
+            fontSize: fontSize - 1,
+            height: 1.7,
+            color: ac.textPrimary,
+          ),
+        ),
+      ],
     );
   }
 }

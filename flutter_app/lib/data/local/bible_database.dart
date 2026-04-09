@@ -203,6 +203,11 @@ class BibleDatabase {
     );
   }
 
+  List<String> getAllAvailableTranslations() {
+    final translations = _translationDbs.keys.toList()..sort();
+    return List.unmodifiable(translations);
+  }
+
   Future<List<BibleVerse>> getChapter({
     required String translation,
     required String book,
@@ -215,6 +220,24 @@ class BibleDatabase {
       'verses',
       where: 'book = ? AND chapter = ?',
       whereArgs: [book, chapter],
+      orderBy: 'verse ASC',
+    );
+
+    return rows.map((r) => BibleVerse.fromMap(r, translation)).toList();
+  }
+
+  Future<List<BibleVerse>> getChapterByBookNumber({
+    required String translation,
+    required int bookNumber,
+    required int chapter,
+  }) async {
+    final db = _getTranslationDb(translation);
+    if (db == null) return [];
+
+    final rows = await db.query(
+      'verses',
+      where: 'book_number = ? AND chapter = ?',
+      whereArgs: [bookNumber, chapter],
       orderBy: 'verse ASC',
     );
 
@@ -294,6 +317,20 @@ class BibleDatabase {
     final rows = await db.rawQuery(
       'SELECT MAX(chapter) as max_chapter FROM verses WHERE book = ?',
       [book],
+    );
+    return (rows.first['max_chapter'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<int> getChapterCountByBookNumber({
+    required String translation,
+    required int bookNumber,
+  }) async {
+    final db = _getTranslationDb(translation);
+    if (db == null) return 0;
+
+    final rows = await db.rawQuery(
+      'SELECT MAX(chapter) as max_chapter FROM verses WHERE book_number = ?',
+      [bookNumber],
     );
     return (rows.first['max_chapter'] as num?)?.toInt() ?? 0;
   }
