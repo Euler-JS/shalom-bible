@@ -37,6 +37,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Future<void> _load({String? query}) async {
     final auth = ref.read(authProvider);
+    final language = ref.read(settingsProvider).language;
     if (!auth.isLoggedIn) return;
 
     setState(() {
@@ -69,14 +70,21 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = 'Erro ao carregar biblioteca.';
+          _error = ApiClient.userFriendlyError(
+            e,
+            language: language,
+            fallbackPt: 'Erro ao carregar biblioteca.',
+            fallbackEn: 'Error loading library.',
+          );
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = 'Erro ao carregar biblioteca.';
+          _error = language == 'pt'
+              ? 'Erro ao carregar biblioteca.'
+              : 'Error loading library.';
         });
       }
     }
@@ -107,6 +115,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
 
     if (confirmed == true && sermon.id != null) {
+      final language = ref.read(settingsProvider).language;
       try {
         await ApiClient.instance.deleteSermon(sermon.id!);
         setState(() => _sermons.removeWhere((s) => s.id == sermon.id));
@@ -118,8 +127,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       } catch (_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Erro ao eliminar.'),
+            SnackBar(
+              content: Text(
+                language == 'pt'
+                    ? 'Não foi possível eliminar. Verifica a tua internet e tenta novamente.'
+                    : 'Could not delete. Check your internet and try again.',
+              ),
               backgroundColor: AppColors.error,
             ),
           );

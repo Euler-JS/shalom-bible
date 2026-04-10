@@ -98,6 +98,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final data = await ApiClient.instance.login(
         email: email,
         password: password,
+        language: 'pt',
       );
       final token = data['token'] as String;
       final user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
@@ -139,9 +140,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (msg.contains('409')) return 'Este email já está registado.';
       if (msg.contains('401')) return 'Email ou senha incorrectos.';
       if (msg.contains('delete')) return 'Não foi possível eliminar a conta.';
-      if (msg.contains('network') || msg.contains('connection')) {
-        return 'Sem ligação à internet.';
-      }
+      if (msg.contains('Sem ligação à internet')) return 'Sem ligação à internet.';
+      if (msg.contains('No internet connection')) return 'Sem ligação à internet.';
+      return msg.replaceFirst('Exception: ', '');
     }
     return 'Algo correu mal. Tenta novamente.';
   }

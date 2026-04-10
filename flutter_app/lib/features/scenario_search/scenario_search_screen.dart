@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/bible_verse.dart';
@@ -74,22 +73,10 @@ class _ScenarioSearchScreenState extends ConsumerState<ScenarioSearchScreen> {
         _passages = enriched;
         _isLoading = false;
       });
-    } on DioException catch (e) {
+    } catch (e) {
       setState(() {
         _isLoading = false;
-        final msg = e.response?.data is Map<String, dynamic>
-            ? (e.response!.data['message']?.toString() ??
-                  e.message ??
-                  'Erro ao buscar passagens.')
-            : (e.message ?? 'Erro ao buscar passagens.');
-        _error = msg;
-      });
-    } catch (_) {
-      setState(() {
-        _isLoading = false;
-        _error = settings.language == 'pt'
-            ? 'Erro ao buscar passagens. Verifica tua ligação à internet.'
-            : 'Error fetching passages. Check your internet connection.';
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -440,7 +427,13 @@ class _HistoricalContextSheetState
                       ),
                     )
                   : _context == null
-                  ? const Center(child: Text('Erro ao carregar contexto.'))
+                  ? Center(
+                      child: Text(
+                        ref.watch(settingsProvider).language == 'pt'
+                            ? 'Não foi possível carregar o contexto.'
+                            : 'Could not load the context.',
+                      ),
+                    )
                   : SingleChildScrollView(
                       controller: scroll,
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),

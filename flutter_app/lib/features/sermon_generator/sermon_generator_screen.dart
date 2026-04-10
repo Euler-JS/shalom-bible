@@ -76,9 +76,7 @@ class _SermonGeneratorScreenState extends ConsumerState<SermonGeneratorScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _error = settings.language == 'pt'
-            ? 'Erro ao gerar esboço. Verifica tua ligação à internet.'
-            : 'Error generating outline. Check your internet connection.';
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -122,8 +120,15 @@ class _SermonGeneratorScreenState extends ConsumerState<SermonGeneratorScreen> {
       setState(() => _isSaving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erro ao guardar. Tenta novamente.'),
+          SnackBar(
+            content: Text(
+              ApiClient.userFriendlyError(
+                e,
+                language: settings.language,
+                fallbackPt: 'Erro ao guardar. Tenta novamente.',
+                fallbackEn: 'Error saving. Please try again.',
+              ),
+            ),
             backgroundColor: AppColors.error,
           ),
         );

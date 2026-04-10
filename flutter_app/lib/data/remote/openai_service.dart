@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
+
 import 'api_client.dart';
 import '../models/bible_verse.dart';
 import '../models/sermon_model.dart';
@@ -23,20 +25,24 @@ class OpenAIService {
     required String language,
     required bool isPremium,
   }) async {
-    final res = await ApiClient.instance.dio.post(
-      '/ai/scenario-search',
-      data: {'scenario': scenario, 'language': language},
-    );
+    try {
+      final res = await ApiClient.instance.dio.post(
+        '/ai/scenario-search',
+        data: {'scenario': scenario, 'language': language},
+      );
 
-    final json = res.data as Map<String, dynamic>;
-    return (json['passages'] as List<dynamic>? ?? [])
-        .map(
-          (p) => ScenarioPassage(
-            reference: p['reference']?.toString() ?? '',
-            explanation: p['explanation']?.toString() ?? '',
-          ),
-        )
-        .toList();
+      final json = res.data as Map<String, dynamic>;
+      return (json['passages'] as List<dynamic>? ?? [])
+          .map(
+            (p) => ScenarioPassage(
+              reference: p['reference']?.toString() ?? '',
+              explanation: p['explanation']?.toString() ?? '',
+            ),
+          )
+          .toList();
+    } on DioException catch (error) {
+      throw Exception(ApiClient.userFriendlyError(error, language: language));
+    }
   }
 
   Future<String> getHistoricalContext({
@@ -45,11 +51,15 @@ class OpenAIService {
     required String language,
     required bool isPremium,
   }) async {
-    final res = await ApiClient.instance.dio.post(
-      '/ai/historical-context',
-      data: {'book': book, 'chapter': chapter, 'language': language},
-    );
-    return jsonEncode(res.data);
+    try {
+      final res = await ApiClient.instance.dio.post(
+        '/ai/historical-context',
+        data: {'book': book, 'chapter': chapter, 'language': language},
+      );
+      return jsonEncode(res.data);
+    } on DioException catch (error) {
+      throw Exception(ApiClient.userFriendlyError(error, language: language));
+    }
   }
 
   Future<String> explainVerse({
@@ -58,15 +68,19 @@ class OpenAIService {
     required String language,
     required bool isPremium,
   }) async {
-    final res = await ApiClient.instance.dio.post(
-      '/ai/explain-verse',
-      data: {
-        'reference': reference,
-        'verseText': verseText,
-        'language': language,
-      },
-    );
-    return jsonEncode(res.data);
+    try {
+      final res = await ApiClient.instance.dio.post(
+        '/ai/explain-verse',
+        data: {
+          'reference': reference,
+          'verseText': verseText,
+          'language': language,
+        },
+      );
+      return jsonEncode(res.data);
+    } on DioException catch (error) {
+      throw Exception(ApiClient.userFriendlyError(error, language: language));
+    }
   }
 
   Future<String> chatBibleQuestion({
@@ -77,17 +91,21 @@ class OpenAIService {
     required String language,
     required bool isPremium,
   }) async {
-    final res = await ApiClient.instance.dio.post(
-      '/ai/bible-chat',
-      data: {
-        'question': question,
-        'book': book,
-        'chapter': chapter,
-        'history': history,
-        'language': language,
-      },
-    );
-    return jsonEncode(res.data);
+    try {
+      final res = await ApiClient.instance.dio.post(
+        '/ai/bible-chat',
+        data: {
+          'question': question,
+          'book': book,
+          'chapter': chapter,
+          'history': history,
+          'language': language,
+        },
+      );
+      return jsonEncode(res.data);
+    } on DioException catch (error) {
+      throw Exception(ApiClient.userFriendlyError(error, language: language));
+    }
   }
 
   Future<List<WordStudyEntry>> getVerseWordStudy({
@@ -96,19 +114,23 @@ class OpenAIService {
     required String language,
     required bool isPremium,
   }) async {
-    final res = await ApiClient.instance.dio.post(
-      '/ai/word-study',
-      data: {
-        'reference': reference,
-        'verseText': verseText,
-        'language': language,
-      },
-    );
+    try {
+      final res = await ApiClient.instance.dio.post(
+        '/ai/word-study',
+        data: {
+          'reference': reference,
+          'verseText': verseText,
+          'language': language,
+        },
+      );
 
-    final json = res.data as Map<String, dynamic>;
-    return (json['words'] as List<dynamic>? ?? [])
-        .map((w) => WordStudyEntry.fromJson(w as Map<String, dynamic>))
-        .toList();
+      final json = res.data as Map<String, dynamic>;
+      return (json['words'] as List<dynamic>? ?? [])
+          .map((w) => WordStudyEntry.fromJson(w as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (error) {
+      throw Exception(ApiClient.userFriendlyError(error, language: language));
+    }
   }
 
   Future<SermonContent> generateSermonOutline({
@@ -116,12 +138,16 @@ class OpenAIService {
     required String language,
     required bool isPremium,
   }) async {
-    final res = await ApiClient.instance.dio.post(
-      '/ai/sermon-outline',
-      data: {'input': input, 'language': language},
-    );
+    try {
+      final res = await ApiClient.instance.dio.post(
+        '/ai/sermon-outline',
+        data: {'input': input, 'language': language},
+      );
 
-    return SermonContent.fromJson(res.data as Map<String, dynamic>);
+      return SermonContent.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (error) {
+      throw Exception(ApiClient.userFriendlyError(error, language: language));
+    }
   }
 
   Future<String> getSermonTitle(Map<String, dynamic> json) async {

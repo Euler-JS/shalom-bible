@@ -1794,9 +1794,8 @@ class _WordStudyBottomSheetState extends ConsumerState<_WordStudyBottomSheet> {
       });
     } catch (e) {
       if (!mounted) return;
-      final msg = e.toString().replaceFirst('Exception: ', '');
       setState(() {
-        _error = isPT ? 'Erro ao carregar:\n$msg' : 'Error loading:\n$msg';
+        _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
       });
     }
@@ -2174,7 +2173,7 @@ class _HistoricalContextBottomSheetState
       });
     } catch (e) {
       setState(() {
-        _error = 'Erro ao carregar. Verifica a tua ligação.';
+        _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
       });
     }
