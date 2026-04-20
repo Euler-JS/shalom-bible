@@ -56,7 +56,7 @@ TERMS_URL=https://yourdomain.com/terms
 7. Deploy
 
 After deployment, point the Flutter app to:
-`https://your-coolify-domain/api`
+`https://bibleapi.jaaziel.co.mz/api`
 
 ### API Endpoints
 
@@ -148,9 +148,9 @@ flutter pub get
 
 2. Configure the **Backend URL** in:
    `lib/core/constants/app_constants.dart`
-   ```dart
-   static const String backendBaseUrl = 'https://your-backend.com/api';
-   ```
+  ```dart
+  static const String backendBaseUrl = 'https://bibleapi.jaaziel.co.mz/api';
+  ```
 
 ### Run on Device
 
